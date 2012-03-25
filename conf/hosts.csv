@@ -1,0 +1,3 @@
+# hostname, IP address, SNMP community
+testhost1,192.0.2.33,public
+"testhost2","192.0.2.66","sth,else"

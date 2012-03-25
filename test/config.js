@@ -41,5 +41,25 @@ describe('config', function () {
         });
 
     });
+
+    describe('hosts', function () {
+        it('should exist', function () {
+            config.should.have.property('hosts');
+        });
+
+        it('should have two hosts', function (done) {
+            config._complete.then(function () {
+                config.hosts.should.have.length(2)
+                done();
+            });
+        });
+
+        it('package should have some values', function () {
+            config._complete.then(function () {
+                config.hosts[0].should.equal(['testhost1', '192.0.2.33', 'public']);
+                config.hosts[1].should.equal(['testhost2', '192.0.2.66', 'sth,else']);
+            });
+        });
+    });
 });
 
