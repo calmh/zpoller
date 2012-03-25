@@ -7,6 +7,7 @@
         "test": "./node_modules/.bin/mocha test/*.js"
     },
     "dependencies": {
+        "csv": "0.0.11",
         "express": "2.5.x",
         "glob": "3.1.x",
         "js-yaml": "0.3.x",
