@@ -50,6 +50,8 @@ function main() {
             }).then(function () {
                 return premove({ remove: true }, { safe: true })
             }).then(function () {
+                return pupdate({ created: null }, { $set: { created: Math.floor(Date.now() / 1000) } }, { multi: true, safe: true })
+            }).then(function () {
                 hostsUpdate.resolve(true);
             });
         });
