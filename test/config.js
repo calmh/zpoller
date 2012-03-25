@@ -32,6 +32,8 @@ describe('config', function () {
         it('package should have some values', function () {
             config.packages[0].hosts.should.equal('.');
             config.packages[0].index.should.equal('.1.3.6.1.2.1.31.1.1.1.1');
+            config.packages[0].intervals.should.have.length(3);
+            config.packages[0].intervals[0].should.equal(60);
             config.packages[0].filter.should.have.length(4);
             config.packages[0].collect.should.have.length(6);
             config.packages[0].metadata.should.have.length(3);
