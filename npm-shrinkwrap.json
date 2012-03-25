@@ -24,6 +24,28 @@
         }
       }
     },
+    "glob": {
+      "version": "3.1.9",
+      "dependencies": {
+        "minimatch": {
+          "version": "0.2.2",
+          "dependencies": {
+            "lru-cache": {
+              "version": "1.0.5"
+            }
+          }
+        },
+        "graceful-fs": {
+          "version": "1.1.8"
+        },
+        "inherits": {
+          "version": "1.0.0"
+        }
+      }
+    },
+    "js-yaml": {
+      "version": "0.3.7"
+    },
     "log": {
       "version": "1.2.0"
     },
@@ -43,9 +65,6 @@
     },
     "underscore": {
       "version": "1.2.4"
-    },
-    "yaml-js": {
-      "version": "0.0.2"
     },
     "should": {
       "version": "0.6.0"

@@ -1,5 +1,6 @@
----
+--- # This defines the start of a YAML file.
 database:
+  # Indentation is relevant.
   host: localhost
   port: 27017
   name: zpoller
