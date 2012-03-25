@@ -1,0 +1,63 @@
+#!/usr/bin/env node
+
+var _ = require('underscore');
+var config = require('../lib/config');
+var db = require('../lib/db');
+var q = require('promised-io');
+
+config._complete.then(main);
+
+function main() {
+    var pdb = _.bind(q.convertNodeAsyncFunction(db.client), db);
+    pdb().then(function (client) {
+        var pcollection = _.bind(q.convertNodeAsyncFunction(client.collection), client);
+        var configUpdate = q.defer();
+        var hostsUpdate = q.defer();
+
+        pcollection('config').then(function (coll) {
+            var pupdate = _.bind(q.convertNodeAsyncFunction(coll.update), coll);
+            var premove = _.bind(q.convertNodeAsyncFunction(coll.remove), coll);
+
+            pupdate({ }, { $set: { remove: true } }, { safe: true, multi: true }).then(function () {
+                var updates = [];
+
+                _.each(config.packages, function (p) {
+                    p.lastUpdate = Math.floor(Date.now() / 1000);
+                    updates.push(pupdate({ index: p.index }, { $set: p, $unset: { remove: 1 } }, { safe: true, upsert: true }));
+                });
+
+                return q.all(updates);
+            }).then(function () {
+                return premove({ remove: true }, { safe: true })
+            }).then(function () {
+                configUpdate.resolve(true);
+            });
+        });
+
+        pcollection('hosts').then(function (coll) {
+            var pupdate = _.bind(q.convertNodeAsyncFunction(coll.update), coll);
+            var premove = _.bind(q.convertNodeAsyncFunction(coll.remove), coll);
+
+            pupdate({ }, { $set: { remove: true } }, { safe: true, multi: true }).then(function () {
+                var updates = [];
+
+                _.each(config.hosts, function (host) {
+                    var obj = { name: host[0], ip: host[1], community: host[2] };
+                    updates.push(pupdate({ name: obj.name }, { $set: obj, $unset: { remove: 1 } }, { safe: true, upsert: true }));
+                });
+
+                return q.all(updates);
+            }).then(function () {
+                return premove({ remove: true }, { safe: true })
+            }).then(function () {
+                hostsUpdate.resolve(true);
+            });
+        });
+
+        q.all([ configUpdate, hostsUpdate ]).then(function () {
+            client.close();
+        });
+    });
+}
+
+// vim: set ft=javascript:
