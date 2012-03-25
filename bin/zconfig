@@ -5,7 +5,7 @@ var config = require('../lib/config');
 var db = require('../lib/db');
 var q = require('promised-io');
 
-config._complete.then(main);
+config.load(main);
 
 function main() {
     var pdb = _.bind(q.convertNodeAsyncFunction(db.client), db);

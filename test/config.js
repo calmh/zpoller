@@ -2,6 +2,11 @@ var config = require('../lib/config');
 var should = require('should');
 
 describe('config', function () {
+    before( function () {
+        config.load(function () {
+        }, '.sample');
+    });
+
     describe('general', function () {
         it('should exist', function () {
             config.should.have.property('general');
@@ -47,18 +52,13 @@ describe('config', function () {
             config.should.have.property('hosts');
         });
 
-        it('should have two hosts', function (done) {
-            config._complete.then(function () {
-                config.hosts.should.have.length(2)
-                done();
-            });
+        it('should have two hosts', function () {
+            config.hosts.should.have.length(2)
         });
 
         it('package should have some values', function () {
-            config._complete.then(function () {
-                config.hosts[0].should.equal(['testhost1', '192.0.2.33', 'public']);
-                config.hosts[1].should.equal(['testhost2', '192.0.2.66', 'sth,else']);
-            });
+            config.hosts[0].should.eql(['testhost1', '192.0.2.33', 'public']);
+            config.hosts[1].should.eql(['testhost2', '192.0.2.66', 'sth,else']);
         });
     });
 });
