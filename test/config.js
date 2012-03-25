@@ -1,6 +1,5 @@
-require('should');
-
 var config = require('../lib/config');
+var should = require('should');
 
 describe('config', function(){
   describe('general', function(){
