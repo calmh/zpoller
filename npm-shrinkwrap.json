@@ -1,0 +1,84 @@
+{
+  "name": "zpoller",
+  "version": "0.0.1",
+  "dependencies": {
+    "express": {
+      "version": "2.5.8",
+      "dependencies": {
+        "connect": {
+          "version": "1.8.6",
+          "dependencies": {
+            "formidable": {
+              "version": "1.0.9"
+            }
+          }
+        },
+        "mime": {
+          "version": "1.2.4"
+        },
+        "qs": {
+          "version": "0.4.2"
+        },
+        "mkdirp": {
+          "version": "0.3.0"
+        }
+      }
+    },
+    "log": {
+      "version": "1.2.0"
+    },
+    "mongodb": {
+      "version": "0.9.9-7",
+      "dependencies": {
+        "bson": {
+          "version": "0.0.4"
+        }
+      }
+    },
+    "promised-io": {
+      "version": "0.3.0"
+    },
+    "snmp-native": {
+      "version": "0.4.0"
+    },
+    "underscore": {
+      "version": "1.2.4"
+    },
+    "yaml-js": {
+      "version": "0.0.2"
+    },
+    "should": {
+      "version": "0.6.0"
+    },
+    "mocha": {
+      "version": "0.8.1",
+      "dependencies": {
+        "commander": {
+          "version": "0.3.2"
+        },
+        "growl": {
+          "version": "1.4.1"
+        },
+        "debug": {
+          "version": "0.6.0"
+        },
+        "say": {
+          "version": "0.5.0",
+          "dependencies": {
+            "translate": {
+              "version": "0.7.0",
+              "dependencies": {
+                "request": {
+                  "version": "2.9.153"
+                }
+              }
+            },
+            "colors": {
+              "version": "0.5.1"
+            }
+          }
+        }
+      }
+    }
+  }
+}

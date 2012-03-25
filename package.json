@@ -1,0 +1,27 @@
+{
+    "author": "Jakob Borg <jakob@nym.se>",
+    "name": "zpoller",
+    "version": "0.0.1",
+    "engine": "node >= 0.6.12",
+    "scripts":  {
+        "test": "./node_modules/.bin/mocha test/*.js"
+    },
+    "dependencies": {
+        "express": "2.5.x",
+        "log": "1.2.x",
+        "mongodb": "0.9.x",
+        "promised-io": "0.3.x",
+        "snmp-native": "0.4.x",
+        "underscore": "1.2.x",
+        "yaml-js": "0.0.2"
+    },
+    "devDependencies": {
+        "mocha": "0.8.x",
+        "should": "0.6.x"
+    },
+    "repository": {
+        "type": "git",
+        "url": "ssh://git@github.com/calmh/zpoller.git"
+    }
+}
+
