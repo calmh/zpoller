@@ -1,2 +1,5 @@
-node_modules
 .*.swp
+conf/general.yml
+conf/hosts.csv
+conf/packages.yml
+node_modules
