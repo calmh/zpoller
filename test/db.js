@@ -51,4 +51,26 @@ describe('db', function () {
             });
         });
     });
+
+    describe('find', function () {
+        it('should return a promise of a doc', function(done) {
+            db.client().then(function (c) {
+                should.exist(db.find(c, 'test-collection', {foo: 'bar'}));
+                done();
+            });
+        });
+        it('should fulfil the promise of a doc after find', function(done) {
+            db.client().then(function (c) {
+                db.update(c, 'test-collection', {a: 'a'}, { a: 'a', b: 'b' }).then (function () {
+                    db.find(c, 'test-collection', {a: 'a'}).then(function (docs) {
+                        should.exist(docs);
+                        docs.should.have.length(1);
+                        docs[0].a.should.equal('a');
+                        docs[0].b.should.equal('b');
+                        done();
+                    });
+                });
+            });
+        });
+    });
 });
