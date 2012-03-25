@@ -1,0 +1,46 @@
+#!/usr/bin/env node
+
+var _ = require('underscore');
+var config = require('../lib/config');
+var db = require('../lib/db');
+var q = require('promised-io');
+var tm = require('../lib/targetmaker');
+var util = require('util');
+
+config.load(main);
+
+function main() {
+    var hosts = q.defer();
+    var packages = q.defer();
+
+    var pclient = _.bind(q.convertNodeAsyncFunction(db.client), db);
+    pclient().then(function (client) {
+        var pcollection = _.bind(q.convertNodeAsyncFunction(client.collection), client);
+
+        pcollection('config').then(function (coll) {
+            coll.find().toArray(function (err, pkgs) {
+                packages.resolve(pkgs);
+            });
+        });
+
+        pcollection('hosts').then(function (coll) {
+            coll.find().toArray(function (err, hs) {
+                hosts.resolve(hs);
+            });
+        });
+
+        q.all(hosts, packages).then(function () {
+            client.close();
+        });
+    });
+
+    q.all(hosts, packages).then(function (arr) {
+        var hosts = arr[0];
+        var pkgs = arr[1];
+        tm.mapHosts(hosts, pkgs).then(function (res) {
+            console.log(util.inspect(res, false, null));
+        });
+    });
+}
+
+// vim: set ft=javascript:
