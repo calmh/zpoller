@@ -14,4 +14,23 @@ describe('db', function () {
             });
         });
     });
+    describe('insert', function () {
+        it('should return a promise of a doc', function(done) {
+            db.client().then(function (c) {
+                should.exist(db.insert(c, 'test-collection', {foo: 'bar'}));
+                done();
+            });
+        });
+        it('should fulfil the promise of a doc after insert', function(done) {
+            db.client().then(function (c) {
+                db.insert(c, 'test-collection', {foo: 'bar'}).then(function (docs) {
+                    docs.should.have.length(1);
+                    docs[0].should.have.property('foo');
+                    docs[0].should.have.property('_id');
+                    docs[0].foo.should.equal('bar');
+                    done();
+                });
+            });
+        });
+    });
 });
