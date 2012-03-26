@@ -4,6 +4,7 @@ var _ = require('underscore');
 var config = require('../lib/config');
 var db = require('../lib/db');
 var q = require('promised-io');
+var crypto = require('crypto/md5');
 
 config.load(main);
 
@@ -22,13 +23,15 @@ function main() {
                 var updates = [];
 
                 _.each(config.packages, function (p) {
-                    p.lastUpdate = Math.floor(Date.now() / 1000);
-                    updates.push(pupdate({ index: p.index }, { $set: p, $unset: { remove: 1 } }, { safe: true, upsert: true }));
+                    p.key = crypto.hex_md5(JSON.stringify(p));
+                    updates.push(pupdate({ key: p.key }, { $set: p, $unset: { remove: 1 } }, { safe: true, upsert: true }));
                 });
 
                 return q.all(updates);
             }).then(function () {
                 return premove({ remove: true }, { safe: true })
+            }).then(function () {
+                return pupdate({ created: null }, { $set: { created: Math.floor(Date.now() / 1000) } }, { multi: true, safe: true })
             }).then(function () {
                 configUpdate.resolve(true);
             });

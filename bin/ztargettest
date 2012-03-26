@@ -25,6 +25,10 @@ function main() {
 
         pcollection('hosts').then(function (coll) {
             coll.find().toArray(function (err, hs) {
+                _.each(hs, function (h) {
+                    delete h._id;
+                    delete h.created;
+                });
                 hosts.resolve(hs);
             });
         });
