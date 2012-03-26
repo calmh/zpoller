@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 var _ = require('underscore');
+var Log = require('log'), log = new Log('debug', process.stderr);
 var config = require('../lib/config');
 var db = require('../lib/db');
 var q = require('promised-io');
@@ -50,94 +51,66 @@ function hostsToIndex() {
     return d.promise;
 }
 
-function main() {
+function getPackages() {
     var pclient = _.bind(q.convertNodeAsyncFunction(db.client), db);
+    var pkgs = pclient().then(function (client) {
+        var pcollection = _.bind(q.convertNodeAsyncFunction(client.collection), client);
 
+        return pcollection('config').then(function (coll) {
+            var d = q.defer();
+
+            coll.find().toArray(function (err, pkgs) {
+                d.resolve(pkgs);
+                client.close();
+            });
+
+            return d.promise;
+        });
+    });
+    return pkgs;
+}
+
+function updateTargets(res) {
+    var pclient = _.bind(q.convertNodeAsyncFunction(db.client), db);
+    pclient().then(function (client) {
+        var updates = [];
+        var pcollection = _.bind(q.convertNodeAsyncFunction(client.collection), client);
+
+        pcollection('targets').then(function (coll) {
+            var pupdate = _.bind(q.convertNodeAsyncFunction(coll.update), coll);
+            _.each(res, function (host) {
+                _.each(host.interfaces, function (ifData, ifName) {
+                    log.debug('Updating target for host: ' + host.name + ', interface: ' + ifName);
+                    updates.push(pupdate({ host: host.name, interface: ifName }, { $set: ifData }, { safe: true, upsert: true }));
+                });
+            });
+        });
+
+        pcollection('hosts').then(function (coll) {
+            var pupdate = _.bind(q.convertNodeAsyncFunction(coll.update), coll);
+            _.each(res, function (host) {
+                log.debug('Updating host record for host: ' + host.name);
+                updates.push(pupdate({ name: host.name }, { $set: { indexed: host.indexed, uptimeWhenIndexed: host.uptimeWhenIndexed } }, { safe: true }));
+            });
+        });
+
+        q.all(updates).then(function () {
+            client.close();
+        });
+    });
+}
+
+function main() {
     hostsToIndex().then(function (hosts) {
         var pkgs, res;
 
         if (hosts.length > 0) {
-            pkgs = pclient().then(function (client) {
-                var pcollection = _.bind(q.convertNodeAsyncFunction(client.collection), client);
-
-                return pcollection('config').then(function (coll) {
-                    var d = q.defer();
-
-                    coll.find().toArray(function (err, pkgs) {
-                        d.resolve(pkgs);
-                        client.close();
-                    });
-
-                    return d.promise;
-                });
-            });
-
-            res = pkgs.then(function (pkgs) {
+            log.info('Going to reindex ' + hosts.length + ' hosts.');
+            getPackages().then(function (pkgs) {
                 return tm.mapHosts(hosts, pkgs);
-            });
-
-            res.then(function (res) {
-                console.log(res);
-                pclient().then(function (client) {
-                    var updates = [];
-                    var pcollection = _.bind(q.convertNodeAsyncFunction(client.collection), client);
-
-                    pcollection('hosts').then(function (coll) {
-                        var pupdate = _.bind(q.convertNodeAsyncFunction(coll.update), coll);
-                        _.each(res, function (host) {
-                            updates.push(pupdate({ name: host.name }, { $set: { indexed: host.indexed, uptimeWhenIndexed: host.uptimeWhenIndexed } }, { safe: true }));
-                        });
-                    });
-
-                    pcollection('targets').then(function (coll) {
-                        var pupdate = _.bind(q.convertNodeAsyncFunction(coll.update), coll);
-                        _.each(res, function (host) {
-                            _.each(host.interfaces, function (ifData, ifName) {
-                                updates.push(pupdate({ host: host.name, interface: ifName }, { $set: ifData }, { safe: true, upsert: true }));
-                            });
-                        });
-                    });
-
-                    q.all(updates).then(function () {
-                        client.close();
-                    });
-                });
-            });
+            }).then(updateTargets);
         }
     });
-/*
-    var hosts = q.defer();
-    var packages = q.defer();
-
-
-        pcollection('hosts').then(function (coll) {
-            coll.find().toArray(function (err, hs) {
-                _.each(hs, function (h) {
-                    delete h._id;
-                    delete h.created;
-                });
-                hosts.resolve(hs);
-            });
-        });
-
-        q.all(hosts, packages).then(function () {
-            client.close();
-        });
-    });
-
-    hosts.then(function (hs) {
-        tm.getUptimes(hs).then(function (uptimes) {
-            console.log(uptimes);
-        });
-    });
-
-    q.all(hosts, packages).then(function (arr) {
-        var hosts = arr[0];
-        var pkgs = arr[1];
-        tm.mapHosts(hosts, pkgs).then(function (res) {
-            console.log(util.inspect(res, false, null));
-        });
-    });*/
 }
 
 // vim: set ft=javascript:
