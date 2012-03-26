@@ -38,6 +38,12 @@ function main() {
         });
     });
 
+    hosts.then(function (hs) {
+        tm.getUptimes(hs).then(function (uptimes) {
+            console.log(uptimes);
+        });
+    });
+
     q.all(hosts, packages).then(function (arr) {
         var hosts = arr[0];
         var pkgs = arr[1];
