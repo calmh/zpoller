@@ -18,19 +18,19 @@
   filter:
     # Filter by ifAdminStatus == up 
     - oid: .1.3.6.1.2.1.2.2.1.7
-      op: ==
+      op: "=="
       rhs: 1
     # Filter by ifOperStatus != down
     - oid: .1.3.6.1.2.1.2.2.1.8
-      op: "!=" # This requires quoting due to the !. It might be safer to quote all ops.
+      op: "!="
       rhs: 2
     # Filter by ifSpeed > 0 bps */
     - oid: .1.3.6.1.2.1.2.2.1.5
-      op: >
+      op: ">"
       rhs: 0
     # Filter by ifMtu < 10000 */
     - oid: .1.3.6.1.2.1.2.2.1.4
-      op: <
+      op: "<"
       rhs: 10000
 
   # Collect the following OIDs to the named tables. If more than one OID
@@ -39,11 +39,11 @@
   # bit counters if they don"t exist.
   collect:
     - oid: .1.3.6.1.2.1.31.1.1.1.6
-      table": ifInOctets
+      table: ifInOctets
     - oid: .1.3.6.1.2.1.2.2.1.10
-      table": ifInOctets
+      table: ifInOctets
     - oid: .1.3.6.1.2.1.31.1.1.1.10
-      table": ifOutOctets
+      table: ifOutOctets
     - oid: .1.3.6.1.2.1.2.2.1.16
       table: ifOutOctets
     - oid: .1.3.6.1.2.1.2.2.1.11
@@ -61,13 +61,40 @@
   # Collect these metadata fields for each interface. They are not used by the
   # poller but can be shown for informational purposes.
   metadata: 
-    - mtu: .1.3.6.1.2.1.2.2.1.4
-    - description: .1.3.6.1.2.1.2.2.1.2
-    - speed: .1.3.6.1.2.1.2.2.1.5
+    mtu: .1.3.6.1.2.1.2.2.1.4
+    description: .1.3.6.1.2.1.2.2.1.2
+    speed: .1.3.6.1.2.1.2.2.1.5
 
   # Define graphs. Not used by the poller, but used by the HTTP server.
   graphs: []
 
-- # Here stars another polling packages
-  hosts: "^foo$"
+-
+  hosts: .
+  index: .1.3.6.1.2.1.31.1.1.1.1
+  filter:
+    # Filter by ifAdminStatus == up 
+    - oid: .1.3.6.1.2.1.2.2.1.7
+      op: "=="
+      rhs: 1
+    # Filter by ifOperStatus != down
+    - oid: .1.3.6.1.2.1.2.2.1.8
+      op: "!="
+      rhs: 2
+    # Filter by ifSpeed > 0 bps */
+    - oid: .1.3.6.1.2.1.2.2.1.5
+      op: ">"
+      rhs: 0
+    # Filter by ifMtu < 10000 */
+    - oid: .1.3.6.1.2.1.2.2.1.4
+      op: "<"
+      rhs: 10000
 
+  collect:
+    - oid: .1.3.6.1.2.1.2.2.1.14
+      table: ifInErrors
+    - oid: .1.3.6.1.2.1.2.2.1.20
+      table: ifOutErrors
+
+  intervals: [ 3600, 86400 ]
+
+  graphs: []
