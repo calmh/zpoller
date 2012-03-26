@@ -100,7 +100,9 @@ function updateTargets(res) {
     });
 }
 
-function main() {
+function reindexer() {
+    var interval = 10*1000;
+
     hostsToIndex().then(function (hosts) {
         var pkgs, res;
 
@@ -108,9 +110,18 @@ function main() {
             log.info('Going to reindex ' + hosts.length + ' hosts.');
             getPackages().then(function (pkgs) {
                 return tm.mapHosts(hosts, pkgs);
-            }).then(updateTargets);
+            }).then(function(res) {
+                updateTargets(res);
+                setTimeout(reindexer, interval);
+            });
+        } else {
+            setTimeout(reindexer, interval);
         }
     });
+}
+
+function main() {
+    reindexer();
 }
 
 // vim: set ft=javascript:
