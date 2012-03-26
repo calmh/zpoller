@@ -7,15 +7,16 @@
         "test": "./node_modules/.bin/mocha test/*.js"
     },
     "dependencies": {
+        "crypto": "0.0.3",
         "csv": "0.0.11",
         "express": "2.5.x",
         "glob": "3.1.x",
         "js-yaml": "0.3.x",
         "log": "1.2.x",
         "mongodb": "0.9.x",
-        "promised-io": "0.3.x",
         "snmp-native": "0.4.x",
-        "underscore": "1.2.x"
+        "underscore": "1.2.x",
+        "promised-io": "git://github.com/calmh/promised-io.git"
     },
     "devDependencies": {
         "mocha": "0.8.x",

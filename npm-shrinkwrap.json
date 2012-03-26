@@ -2,6 +2,9 @@
   "name": "zpoller",
   "version": "0.0.1",
   "dependencies": {
+    "crypto": {
+      "version": "0.0.3"
+    },
     "csv": {
       "version": "0.0.11"
     },
@@ -60,14 +63,15 @@
         }
       }
     },
-    "promised-io": {
-      "version": "0.3.0"
-    },
     "snmp-native": {
-      "version": "0.4.0"
+      "version": "0.4.1"
     },
     "underscore": {
       "version": "1.2.4"
+    },
+    "promised-io": {
+      "version": "0.3.0",
+      "from": "git://github.com/calmh/promised-io.git"
     },
     "should": {
       "version": "0.6.0"
