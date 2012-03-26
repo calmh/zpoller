@@ -7,8 +7,49 @@ var db = require('../lib/db');
 var q = require('promised-io');
 var tm = require('../lib/targetmaker');
 var util = require('util');
+var SNMP = require('snmp-native');
 
 config.load(main);
+
+function getTargets() {
+    var pclient = _.bind(q.convertNodeAsyncFunction(db.client), db);
+    return pclient().then(function (client) {
+        var pcollection = _.bind(q.convertNodeAsyncFunction(client.collection), client);
+        return pcollection('targets').then(function (collection) {
+            var d = q.defer();
+            collection.find().toArray(function (error, result) {
+                if (error) {
+                    return d.reject(error);
+                }
+
+                d.resolve(result);
+            });
+            return d.promise;
+        });
+    });
+}
+
+function getPollingTargets(interval) {
+    var pclient = _.bind(q.convertNodeAsyncFunction(db.client), db);
+    return pclient().then(function (client) {
+        var pcollection = _.bind(q.convertNodeAsyncFunction(client.collection), client);
+        return pcollection('targets').then(function (collection) {
+            var pmapReduce = _.bind(q.convertNodeAsyncFunction(collection.mapReduce), collection);
+            var map = function() {
+                for (var i = 0, l = this.tables.length; i < l; i++) {
+                emit(this.tables[i].intervals, 1);
+                };
+            };
+            var reduce = function (key, arr) {
+                return 1;
+            };
+            return pmapReduce(map, reduce, { out: { inline: 1 }, safe: true }).then(function (result) {
+                var intervals = _.pluck(result[0], '_id');
+                return intervals;
+            });
+        });
+    });
+}
 
 function maxConfigChanged(collection) {
     var d = q.defer();
@@ -38,13 +79,16 @@ function hostsToIndex() {
 
         changeDate.then(function (cd) {
             pcollection('hosts').then(function (coll) {
-                var intv = Math.floor(Date.now() / 1000) - 300;
+                var intv = Math.floor(Date.now() / 1000) - 86400;
                 var q = { $or: [
                     { indexed: { $lte: cd } }, // Configuration has changed since last index
                     { indexed: { $lte: intv } } // The reindexing interval has passed
                 ] };
                 var f = { name: 1, ip: 1, community: 1 };
                 coll.find(q, f, { safe: true }).toArray(function (err, hs) {
+                    _.each(hs, function (h) {
+                        delete h._id;
+                    });
                     d.resolve(hs);
                     client.close();
                 });
@@ -83,10 +127,8 @@ function updateTargets(res) {
         pcollection('targets').then(function (coll) {
             var pupdate = _.bind(q.convertNodeAsyncFunction(coll.update), coll);
             _.each(res, function (host) {
-                _.each(host.interfaces, function (ifData, ifName) {
-                    log.debug('Updating target for host: ' + host.name + ', interface: ' + ifName);
-                    updates.push(pupdate({ host: host.name, interface: ifName }, { $set: ifData }, { safe: true, upsert: true }));
-                });
+                log.debug('Updating target for host: ' + host.name);
+                updates.push(pupdate({ host: host.name }, { $set: host }, { safe: true, upsert: true }));
             });
         });
 
@@ -105,7 +147,7 @@ function updateTargets(res) {
 }
 
 function reindexer() {
-    var interval = 10*1000;
+    var interval = 60*1000;
 
     hostsToIndex().then(function (hosts) {
         var pkgs, res;
@@ -124,8 +166,190 @@ function reindexer() {
     });
 }
 
+var pollers = {};
+var hosts = {};
+var cache = {};
+var results = {};
+
+function pollerStarter() {
+    var interval = 60*1000;
+
+    q.when(getTargets(), function (targets) {
+        hosts = {};
+
+        _.each(targets, function (target) {
+            hosts[target.name] = target;
+
+            // Check all intervals for running pollers
+            _.each(target.interfaces, function (intf) {
+                _.each(intf.tables, function (table) {
+                    var intervalName = table.intervals.join('-');
+                    if (!pollers[intervalName]) {
+                        pollers[intervalName] = true;
+                        startPoller(table.intervals);
+                    };
+                });
+            });
+        });
+
+        setTimeout(pollerStarter, interval);
+    });
+}
+
+function pollHost(host, interval, done) {
+/*
+    {
+        "_id" : ObjectId("4f70b8306769195d20a83413"),
+        "community" : "nym.se",
+        "host" : "anto",
+        "indexed" : 1332787228,
+        "interfaces" : {
+            "lo0" : {
+                "metadata" : {
+                    "mtu" : 8232,
+                    "description" : "lo0",
+                    "speed" : 127000000
+                },
+                "tables" : [
+                {
+                    "table" : "ifInOctets",
+                    "oid" : ".1.3.6.1.2.1.31.1.1.1.6.1",
+                    "intervals" : [ 60, 3600, 86400 ]
+                },
+*/
+    var conn, oids, tables, intfs, hres, hcache;
+
+    interval = interval.toString();
+    if (!results[interval]) {
+        results[interval] = {};
+        cache[interval] = {};
+    }
+
+    if (!results[interval][host.name]) {
+        results[interval][host.name] = {
+            counter: {},
+            rate: {},
+            stat: {}
+        };
+    }
+    hres = results[interval][host.name];
+
+    if (!cache[interval][host.name]) {
+        cache[interval][host.name] = {
+            oids: [],
+            tables: {},
+            intfs: {}
+        };
+        hcache = cache[interval][host.name];
+        _.each(host.interfaces, function (intf, ifName) {
+            _.each(intf.tables, function (table) {
+                if (table.intervals.toString() === interval) {
+                hcache.oids.push(tm.unittest.parseOid(table.oid));
+                hcache.tables[table.oid] = table.table;
+                hcache.intfs[table.oid] = ifName;
+                if (!hres.counter[ifName]) {
+                    hres.counter[ifName] = {};
+                }
+                }
+            });
+        });
+    }
+    hcache = cache[interval][host.name];
+
+    conn = new SNMP.Session(host.ip, host.community);
+    conn.getAll(hcache.oids, function (err, data) {
+        _.each(data, function (vb) {
+            var oldVal, oldT;
+            var oid = vb.oid;
+            var val = vb.value;
+            var t = Math.round((vb.receiveStamp + vb.sendStamp) / 2.0);
+            var oidS = '.' + oid.join('.');
+            var intf = hcache.intfs[oidS];
+            var table = hcache.tables[oidS];
+            if (hres.counter[intf][table]) {
+                oldVal = hres.counter[intf][table][0];
+                oldT = hres.counter[intf][table][1];
+                hres.rate['rate.' + intf + '.' + table] = Math.round((val - oldVal) / (t - oldT) * 1000);
+            }
+            hres.counter[intf][table] = [ val, t ];
+        });
+        conn.close();
+        done(hres.rate);
+    });
+}
+
+function startPoller(interval) {
+    var delay = interval[0] * 1000;
+    function pollerLoop() {
+        var startTime = Date.now();
+        var nhosts = 0;
+        var nupdates = 0;
+        var ncounters = 0;
+        var pollTime = 0;
+        var dbTime = 0;
+
+        var pclient = _.bind(q.convertNodeAsyncFunction(db.client), db);
+        pclient().then(function (client) {
+            var pcollection = _.bind(q.convertNodeAsyncFunction(client.collection), client);
+            log.debug('Hello from poller ' + interval);
+
+            // FIXME: Gah!
+            var updates = [];
+            _.each(hosts, function (target) {
+                var pollD = q.defer();
+                updates.push(pollD);
+                nhosts += 1;
+
+                var startPoll = Date.now();
+                pollHost(target, interval, function (result) {
+                    pollTime += Date.now() - startPoll;
+
+                    if (_.size(result) > 0) {
+                        _.each(interval, function (ival) {
+                            var updateD = q.defer();
+                            updates.push(updateD);
+                            var startDb = Date.now();
+                            pcollection('host.' + target.name + '.i' + ival).then(function (collection) {
+                                var update = { $inc: _.extend({ div: 1 }, result) };
+                                var query = { ts: Math.floor(Date.now() / 1000 / ival) * ival };
+                                nupdates += 1;
+                                ncounters += _.size(result);
+                                collection.update(query, update, { upsert: true, safe: true }, function (err, res) {
+                                    if (err) {
+                                        throw err;
+                                    }
+                                    dbTime += Date.now() - startDb;
+                                    updateD.resolve(true);
+                                });
+                            });
+                        });
+                    }
+                    pollD.resolve(true);
+                });
+            });
+
+            q.all(updates).then(function () {
+                client.close();
+                var endTime = Date.now();
+                log.info('Processed ' + nhosts + ' hosts, ' + nupdates + ' updates, ' + ncounters + ' counters in ' + (endTime - startTime) + ' ms (' + pollTime + ' ms SNMP, ' + dbTime + ' ms DB).');
+            });
+
+            var now = Date.now();
+            // We add a few ms to make sure we are not called before it's time.
+            // Because sometimes sleep returns slightly before it should, and
+            // then we might schedule a new polling round a millisecond later.
+            var sleep = Math.ceil(Date.now() / delay) * delay - now + 10;
+            setTimeout(pollerLoop, sleep);
+        });
+    }
+
+    pollerLoop();
+}
+
+
 function main() {
     reindexer();
+    pollerStarter();
 }
 
 // vim: set ft=javascript:
