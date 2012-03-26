@@ -38,7 +38,11 @@ function hostsToIndex() {
 
         changeDate.then(function (cd) {
             pcollection('hosts').then(function (coll) {
-                var q = { indexed: { $lte: cd } }; // Configuration has changed since last index
+                var intv = Math.floor(Date.now() / 1000) - 300;
+                var q = { $or: [
+                    { indexed: { $lte: cd } }, // Configuration has changed since last index
+                    { indexed: { $lte: intv } } // The reindexing interval has passed
+                ] };
                 var f = { name: 1, ip: 1, community: 1 };
                 coll.find(q, f, { safe: true }).toArray(function (err, hs) {
                     d.resolve(hs);
