@@ -2,6 +2,7 @@
 
 var _ = require('underscore');
 var Log = require('log'), log = new Log('debug', process.stderr);
+var async = require('async');
 var config = require('../lib/config');
 var db = require('../lib/db');
 var q = require('promised-io');
@@ -25,28 +26,6 @@ function getTargets() {
                 d.resolve(result);
             });
             return d.promise;
-        });
-    });
-}
-
-function getPollingTargets(interval) {
-    var pclient = _.bind(q.convertNodeAsyncFunction(db.client), db);
-    return pclient().then(function (client) {
-        var pcollection = _.bind(q.convertNodeAsyncFunction(client.collection), client);
-        return pcollection('targets').then(function (collection) {
-            var pmapReduce = _.bind(q.convertNodeAsyncFunction(collection.mapReduce), collection);
-            var map = function() {
-                for (var i = 0, l = this.tables.length; i < l; i++) {
-                emit(this.tables[i].intervals, 1);
-                };
-            };
-            var reduce = function (key, arr) {
-                return 1;
-            };
-            return pmapReduce(map, reduce, { out: { inline: 1 }, safe: true }).then(function (result) {
-                var intervals = _.pluck(result[0], '_id');
-                return intervals;
-            });
         });
     });
 }
@@ -79,11 +58,11 @@ function hostsToIndex() {
 
         changeDate.then(function (cd) {
             pcollection('hosts').then(function (coll) {
-                var intv = Math.floor(Date.now() / 1000) - 86400;
+                var intv = Math.floor(Date.now() / 1000) - 400;
                 var q = { $or: [
                     { indexed: { $lte: cd } }, // Configuration has changed since last index
-                    { indexed: { $lte: intv } } // The reindexing interval has passed
-                ] };
+                { indexed: { $lte: intv } } // The reindexing interval has passed
+            ] };
                 var f = { name: 1, ip: 1, community: 1 };
                 coll.find(q, f, { safe: true }).toArray(function (err, hs) {
                     _.each(hs, function (h) {
@@ -147,7 +126,7 @@ function updateTargets(res) {
 }
 
 function reindexer() {
-    var interval = 60*1000;
+    var interval = 300*1000;
 
     hostsToIndex().then(function (hosts) {
         var pkgs, res;
@@ -155,14 +134,20 @@ function reindexer() {
         if (hosts.length > 0) {
             log.info('Going to reindex ' + hosts.length + ' hosts.');
             getPackages().then(function (pkgs) {
-                return tm.mapHosts(hosts, pkgs);
-            }).then(function(res) {
-                updateTargets(res);
-                setTimeout(reindexer, interval);
+                var queue = async.queue(function (host, callback) {
+                    tm.indexHost(host, pkgs, function (error, result) {
+                        if (result && !error) {
+                            updateTargets([result]);
+                        }
+                        callback();
+                    });
+                }, config.general.concurrency.reindex);
+
+                queue.push(hosts);
             });
-        } else {
-            setTimeout(reindexer, interval);
         }
+
+        setTimeout(reindexer, interval);
     });
 }
 
@@ -197,26 +182,26 @@ function pollerStarter() {
 }
 
 function pollHost(host, interval, done) {
-/*
-    {
-        "_id" : ObjectId("4f70b8306769195d20a83413"),
-        "community" : "nym.se",
-        "host" : "anto",
-        "indexed" : 1332787228,
-        "interfaces" : {
-            "lo0" : {
-                "metadata" : {
-                    "mtu" : 8232,
-                    "description" : "lo0",
-                    "speed" : 127000000
-                },
-                "tables" : [
-                {
-                    "table" : "ifInOctets",
-                    "oid" : ".1.3.6.1.2.1.31.1.1.1.6.1",
-                    "intervals" : [ 60, 3600, 86400 ]
-                },
-*/
+    /*
+       {
+       "_id" : ObjectId("4f70b8306769195d20a83413"),
+       "community" : "nym.se",
+       "host" : "anto",
+       "indexed" : 1332787228,
+       "interfaces" : {
+       "lo0" : {
+       "metadata" : {
+       "mtu" : 8232,
+       "description" : "lo0",
+       "speed" : 127000000
+       },
+       "tables" : [
+       {
+       "table" : "ifInOctets",
+       "oid" : ".1.3.6.1.2.1.31.1.1.1.6.1",
+       "intervals" : [ 60, 3600, 86400 ]
+       },
+       */
     var conn, oids, tables, intfs, hres, hcache;
 
     interval = interval.toString();
@@ -244,12 +229,12 @@ function pollHost(host, interval, done) {
         _.each(host.interfaces, function (intf, ifName) {
             _.each(intf.tables, function (table) {
                 if (table.intervals.toString() === interval) {
-                hcache.oids.push(tm.unittest.parseOid(table.oid));
-                hcache.tables[table.oid] = table.table;
-                hcache.intfs[table.oid] = ifName;
-                if (!hres.counter[ifName]) {
-                    hres.counter[ifName] = {};
-                }
+                    hcache.oids.push(tm.unittest.parseOid(table.oid));
+                    hcache.tables[table.oid] = table.table;
+                    hcache.intfs[table.oid] = ifName;
+                    if (!hres.counter[ifName]) {
+                        hres.counter[ifName] = {};
+                    }
                 }
             });
         });
@@ -288,58 +273,57 @@ function startPoller(interval) {
         var pollTime = 0;
         var dbTime = 0;
 
-        var pclient = _.bind(q.convertNodeAsyncFunction(db.client), db);
-        pclient().then(function (client) {
-            var pcollection = _.bind(q.convertNodeAsyncFunction(client.collection), client);
+        db.client(function (error, client) {
             log.debug('Hello from poller ' + interval);
 
             // FIXME: Gah!
-            var updates = [];
-            _.each(hosts, function (target) {
-                var pollD = q.defer();
-                updates.push(pollD);
+            function pollSingleHost(target, callback) {
+                log.debug('Polling ' + target.name);
                 nhosts += 1;
 
                 var startPoll = Date.now();
                 pollHost(target, interval, function (result) {
                     pollTime += Date.now() - startPoll;
 
-                    if (_.size(result) > 0) {
+                    var done = 0;
+                    if (_.size(results) > 0) {
                         _.each(interval, function (ival) {
-                            var updateD = q.defer();
-                            updates.push(updateD);
                             var startDb = Date.now();
-                            pcollection('host.' + target.name + '.i' + ival).then(function (collection) {
+                            client.collection('host.' + target.name + '.i' + ival, function (error, collection) {
                                 var update = { $inc: _.extend({ div: 1 }, result) };
                                 var query = { ts: Math.floor(Date.now() / 1000 / ival) * ival };
                                 nupdates += 1;
                                 ncounters += _.size(result);
                                 collection.update(query, update, { upsert: true, safe: true }, function (err, res) {
-                                    if (err) {
-                                        throw err;
-                                    }
                                     dbTime += Date.now() - startDb;
-                                    updateD.resolve(true);
+                                    log.debug('Done polling ' + target.name);
+
+                                    done += 1;
+                                    if (done == interval.length) {
+                                        callback();
+                                    }
                                 });
                             });
                         });
                     }
-                    pollD.resolve(true);
                 });
-            });
+            };
 
-            q.all(updates).then(function () {
+            var queue = async.queue(pollSingleHost, config.general.concurrency.poll);
+            queue.drain = function () {
                 client.close();
+
                 var endTime = Date.now();
                 log.info('Processed ' + nhosts + ' hosts, ' + nupdates + ' updates, ' + ncounters + ' counters in ' + (endTime - startTime) + ' ms (' + pollTime + ' ms SNMP, ' + dbTime + ' ms DB).');
-            });
+                var now = Date.now();
+                // We add a few ms to make sure we are not called before it's time.
+                // Because sometimes sleep returns slightly before it should, and
+                // then we might schedule a new polling round a millisecond later.
+                var sleep = Math.ceil(Date.now() / delay) * delay - now + 10;
+                setTimeout(pollerLoop, sleep);
+            };
 
-            var now = Date.now();
-            // We add a few ms to make sure we are not called before it's time.
-            // Because sometimes sleep returns slightly before it should, and
-            // then we might schedule a new polling round a millisecond later.
-            var sleep = Math.ceil(Date.now() / delay) * delay - now + 10;
-            setTimeout(pollerLoop, sleep);
+            queue.push(_.values(hosts));
         });
     }
 

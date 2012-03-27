@@ -7,6 +7,7 @@
         "test": "./node_modules/.bin/mocha test/*.js"
     },
     "dependencies": {
+        "async": "0.1.18",
         "crypto": "0.0.3",
         "csv": "0.0.11",
         "express": "2.5.x",

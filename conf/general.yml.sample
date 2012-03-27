@@ -6,3 +6,6 @@ database:
   name: zpoller
   # username: username
   # password: password
+concurrency:
+  reindex: 16
+  poll: 512
