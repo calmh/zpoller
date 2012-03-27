@@ -2,9 +2,9 @@ var config = require('../lib/config');
 var should = require('should');
 
 describe('config', function () {
-    before( function () {
-        config.load(function () {
-        }, '.sample');
+    before( function (done) {
+        config.load('.sample');
+        config.ready(done);
     });
 
     describe('general', function () {
@@ -41,7 +41,7 @@ describe('config', function () {
             config.packages[0].intervals[0].should.equal(60);
             config.packages[0].filter.should.have.length(4);
             config.packages[0].collect.should.have.length(6);
-            config.packages[0].metadata.should.have.length(3);
+            config.packages[0].metadata.should.have.property('mtu');
             config.packages[0].graphs.should.have.length(0);
         });
 

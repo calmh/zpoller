@@ -16,8 +16,7 @@
         "log": "1.2.x",
         "mongodb": "0.9.x",
         "snmp-native": "0.4.x",
-        "underscore": "1.2.x",
-        "promised-io": "git://github.com/calmh/promised-io.git"
+        "underscore": "1.2.x"
     },
     "devDependencies": {
         "mocha": "0.8.x",
