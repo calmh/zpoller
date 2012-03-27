@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 var _ = require('underscore');
-var Log = require('log'), log = new Log('debug', process.stderr);
+var Log = require('log'), log = new Log('info', process.stderr);
 var async = require('async');
 var config = require('../lib/config');
 var db = require('../lib/db');
@@ -295,8 +295,9 @@ function startDb() {
 
     dbQueue = async.queue(dbProcessor, config.general.concurrency.database);
     dbQueue.drain = function () {
+        var endTime = Date.now();
         if (startTime) {
-            log.info('DB queue emptied; ' + processed + ' updates at ' + (1000 * processed / (Date.now() - startTime)).toFixed(1) + ' reqs/s.');
+            log.info('DB: ' + processed + ' updates in ' + (endTime - startTime) + ' ms (' + (1000 * processed / (Date.now() - startTime)).toFixed(1) + ' reqs/s).');
         }
         startTime = 0;
         processed = 0;
@@ -308,12 +309,9 @@ function startPoller(interval) {
     function pollerLoop() {
         var startTime = Date.now();
         var nhosts = 0;
-        var nupdates = 0;
         var ncounters = 0;
         var pollTime = 0;
         var dbTime = 0;
-
-        log.debug('Hello from poller ' + interval);
 
         // FIXME: Gah!
         function pollSingleHost(target, callback) {
@@ -326,6 +324,7 @@ function startPoller(interval) {
 
                 var done = 0;
                 if (_.size(results) > 0) {
+                    ncounters += _.size(results);
                     var tasks = _.map(interval, function (ival) {
                         return { ts: Math.floor(Date.now() / 1000 / ival) * ival, result: results, collection: 'host.' + target.name + '.i' + ival};
                     });
@@ -339,7 +338,7 @@ function startPoller(interval) {
         var queue = async.queue(pollSingleHost, config.general.concurrency.poll);
         queue.drain = function () {
             var endTime = Date.now();
-            log.info('Processed ' + nhosts + ' hosts, ' + nupdates + ' updates, ' + ncounters + ' counters in ' + (endTime - startTime) + ' ms (' + pollTime + ' ms SNMP, ' + dbTime + ' ms DB).');
+            log.info('SNMP: ' + nhosts + ' hosts, ' + ncounters + ' counters in ' + (endTime - startTime) + ' ms (' + (1000 * ncounters / (endTime - startTime)).toFixed(1) + ' reqs/s).');
             var now = Date.now();
             // We add a few ms to make sure we are not called before it's time.
             // Because sometimes sleep returns slightly before it should, and
