@@ -9,6 +9,7 @@ var q = require('promised-io');
 var tm = require('../lib/targetmaker');
 var util = require('util');
 var SNMP = require('snmp-native');
+var mongodb = require('mongodb');
 
 config.load(main);
 
@@ -265,7 +266,8 @@ function pollHost(host, interval, done) {
 
 var dbQueue;
 function startDb() {
-    var st = 0, report = 16;
+    var startTime = 0;
+    var processed = 0;
     function dbProcessor(task, callback) {
         var result = task.result;
         var ts = task.ts;
@@ -275,24 +277,29 @@ function startDb() {
             return callback();
         }
 
+        if (!startTime) {
+            startTime = Date.now();
+        }
+
         db.collection(collectionName, function (error, collection) {
-            var update = { $inc: _.extend({ div: 1 }, result) };
+            var conv = {};
+            _.each(result, function (val, key) { conv[key] = new mongodb.Long(val); });
+            var update = { $inc: _.extend({ div: new mongodb.Long(1) }, conv ) };
             var query = { ts: ts };
             collection.update(query, update, { upsert: true, safe: true }, function (err, res) {
+                processed += 1;
                 callback();
-                if (dbQueue.length() % report === 0) {
-                    if (st) {
-                        log.info('DB queue length ' + dbQueue.length() + ', per req ' + (Date.now() - st) / report + ' ms.');
-                    }
-                    st = Date.now();
-                }
             });
         });
     }
 
-    dbQueue = async.queue(dbProcessor, 4);
+    dbQueue = async.queue(dbProcessor, config.general.concurrency.database);
     dbQueue.drain = function () {
-        log.info('DB Queue empty');
+        if (startTime) {
+            log.info('DB queue emptied; ' + processed + ' updates at ' + (1000 * processed / (Date.now() - startTime)).toFixed(1) + ' reqs/s.');
+        }
+        startTime = 0;
+        processed = 0;
     };
 }
 
