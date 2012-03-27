@@ -310,7 +310,6 @@ function startPoller(interval) {
         var startTime = Date.now();
         var nhosts = 0;
         var ncounters = 0;
-        var pollTime = 0;
         var dbTime = 0;
 
         // FIXME: Gah!
@@ -318,15 +317,12 @@ function startPoller(interval) {
             log.debug('Polling ' + target.name);
             nhosts += 1;
 
-            var startPoll = Date.now();
             pollHost(target, interval, function (result) {
-                pollTime += Date.now() - startPoll;
-
                 var done = 0;
-                if (_.size(results) > 0) {
-                    ncounters += _.size(results);
+                if (_.size(result) > 0) {
+                    ncounters += _.size(result);
                     var tasks = _.map(interval, function (ival) {
-                        return { ts: Math.floor(Date.now() / 1000 / ival) * ival, result: results, collection: 'host.' + target.name + '.i' + ival};
+                        return { ts: Math.floor(Date.now() / 1000 / ival) * ival, result: result, collection: 'host.' + target.name + '.i' + ival};
                     });
                     dbQueue.push(tasks);
                 }

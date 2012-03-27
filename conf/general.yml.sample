@@ -9,3 +9,4 @@ database:
 concurrency:
   reindex: 16
   poll: 512
+  database: 2
