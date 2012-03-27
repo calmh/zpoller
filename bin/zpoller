@@ -58,7 +58,7 @@ function hostsToIndex() {
 
         changeDate.then(function (cd) {
             pcollection('hosts').then(function (coll) {
-                var intv = Math.floor(Date.now() / 1000) - 400;
+                var intv = Math.floor(Date.now() / 1000) - 86400;
                 var q = { $or: [
                     { indexed: { $lte: cd } }, // Configuration has changed since last index
                 { indexed: { $lte: intv } } // The reindexing interval has passed
@@ -263,6 +263,39 @@ function pollHost(host, interval, done) {
     });
 }
 
+var dbQueue;
+function startDb() {
+    var st = 0, report = 16;
+    function dbProcessor(task, callback) {
+        var result = task.result;
+        var ts = task.ts;
+        var collectionName = task.collection;
+
+        if (_.size(result) < 1) {
+            return callback();
+        }
+
+        db.collection(collectionName, function (error, collection) {
+            var update = { $inc: _.extend({ div: 1 }, result) };
+            var query = { ts: ts };
+            collection.update(query, update, { upsert: true, safe: true }, function (err, res) {
+                callback();
+                if (dbQueue.length() % report === 0) {
+                    if (st) {
+                        log.info('DB queue length ' + dbQueue.length() + ', per req ' + (Date.now() - st) / report + ' ms.');
+                    }
+                    st = Date.now();
+                }
+            });
+        });
+    }
+
+    dbQueue = async.queue(dbProcessor, 4);
+    dbQueue.drain = function () {
+        log.info('DB Queue empty');
+    };
+}
+
 function startPoller(interval) {
     var delay = interval[0] * 1000;
     function pollerLoop() {
@@ -273,66 +306,50 @@ function startPoller(interval) {
         var pollTime = 0;
         var dbTime = 0;
 
-        db.client(function (error, client) {
-            log.debug('Hello from poller ' + interval);
+        log.debug('Hello from poller ' + interval);
 
-            // FIXME: Gah!
-            function pollSingleHost(target, callback) {
-                log.debug('Polling ' + target.name);
-                nhosts += 1;
+        // FIXME: Gah!
+        function pollSingleHost(target, callback) {
+            log.debug('Polling ' + target.name);
+            nhosts += 1;
 
-                var startPoll = Date.now();
-                pollHost(target, interval, function (result) {
-                    pollTime += Date.now() - startPoll;
+            var startPoll = Date.now();
+            pollHost(target, interval, function (result) {
+                pollTime += Date.now() - startPoll;
 
-                    var done = 0;
-                    if (_.size(results) > 0) {
-                        _.each(interval, function (ival) {
-                            var startDb = Date.now();
-                            client.collection('host.' + target.name + '.i' + ival, function (error, collection) {
-                                var update = { $inc: _.extend({ div: 1 }, result) };
-                                var query = { ts: Math.floor(Date.now() / 1000 / ival) * ival };
-                                nupdates += 1;
-                                ncounters += _.size(result);
-                                collection.update(query, update, { upsert: true, safe: true }, function (err, res) {
-                                    dbTime += Date.now() - startDb;
-                                    log.debug('Done polling ' + target.name);
+                var done = 0;
+                if (_.size(results) > 0) {
+                    var tasks = _.map(interval, function (ival) {
+                        return { ts: Math.floor(Date.now() / 1000 / ival) * ival, result: results, collection: 'host.' + target.name + '.i' + ival};
+                    });
+                    dbQueue.push(tasks);
+                }
 
-                                    done += 1;
-                                    if (done == interval.length) {
-                                        callback();
-                                    }
-                                });
-                            });
-                        });
-                    }
-                });
-            };
+                callback();
+            });
+        };
 
-            var queue = async.queue(pollSingleHost, config.general.concurrency.poll);
-            queue.drain = function () {
-                client.close();
+        var queue = async.queue(pollSingleHost, config.general.concurrency.poll);
+        queue.drain = function () {
+            var endTime = Date.now();
+            log.info('Processed ' + nhosts + ' hosts, ' + nupdates + ' updates, ' + ncounters + ' counters in ' + (endTime - startTime) + ' ms (' + pollTime + ' ms SNMP, ' + dbTime + ' ms DB).');
+            var now = Date.now();
+            // We add a few ms to make sure we are not called before it's time.
+            // Because sometimes sleep returns slightly before it should, and
+            // then we might schedule a new polling round a millisecond later.
+            var sleep = Math.ceil(Date.now() / delay) * delay - now + 10;
+            setTimeout(pollerLoop, sleep);
+        };
 
-                var endTime = Date.now();
-                log.info('Processed ' + nhosts + ' hosts, ' + nupdates + ' updates, ' + ncounters + ' counters in ' + (endTime - startTime) + ' ms (' + pollTime + ' ms SNMP, ' + dbTime + ' ms DB).');
-                var now = Date.now();
-                // We add a few ms to make sure we are not called before it's time.
-                // Because sometimes sleep returns slightly before it should, and
-                // then we might schedule a new polling round a millisecond later.
-                var sleep = Math.ceil(Date.now() / delay) * delay - now + 10;
-                setTimeout(pollerLoop, sleep);
-            };
-
-            queue.push(_.values(hosts));
-        });
+        queue.push(_.values(hosts));
     }
 
     pollerLoop();
 }
 
-
 function main() {
     reindexer();
+    startDb();
     pollerStarter();
 }
 
