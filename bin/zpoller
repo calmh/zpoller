@@ -91,15 +91,24 @@ function updateTargets(res) {
 
 function reindexer() {
     log.debug('reindexer()');
-    var interval = 300*1000;
+    var interval = 60*1000;
 
-    hostsToIndex(function (error, hosts) {
-        var pkgs, res;
+    getPackages(function (err, pkgs) {
+        // Check if we need to start any new pollers.
+        var intervals = _.pluck(pkgs, 'intervals');
+        _.each(intervals, function (interval) {
+            var intervalName = interval.join('-');
+            if (!pollers[intervalName]) {
+                pollers[intervalName] = true;
+                startPoller(interval);
+            };
+        });
 
-        if (hosts.length > 0) {
-            log.info('Going to reindex ' + hosts.length + ' hosts.');
-            // FIXME: rewrite ffs
-            getPackages(function (err, pkgs) {
+        // Check if there are hosts to reindex.
+        hostsToIndex(function (error, hosts) {
+            if (hosts.length > 0) {
+                log.info('Going to reindex ' + hosts.length + ' hosts.');
+                // FIXME: rewrite ffs
                 var queue = async.queue(function (host, callback) {
                     tm.indexHost(host, pkgs, function (error, result) {
                         if (result && !error) {
@@ -109,11 +118,14 @@ function reindexer() {
                     });
                 }, config.general.concurrency.reindex);
 
+                queue.empty = function () {
+                    setTimeout(reindexer, interval);
+                };
                 queue.push(hosts);
-            });
-        }
-
-        setTimeout(reindexer, interval);
+            } else {
+                setTimeout(reindexer, interval);
+            }
+        });
     });
 }
 
@@ -121,24 +133,7 @@ var pollers = {};
 var hosts = {};
 var cache = {};
 var results = {};
-
-function pollerStarter() {
-    log.debug('pollerStarter()');
-    var interval = 60*1000;
-
-    getPackages(function (error, configs) {
-        var intervals = _.pluck(configs, 'intervals');
-        _.each(intervals, function (interval) {
-            var intervalName = interval.join('-');
-            if (!pollers[intervalName]) {
-                pollers[intervalName] = true;
-                startPoller(interval);
-            };
-        });
-    });
-
-    setTimeout(pollerStarter, interval);
-}
+var conn;
 
 function pollHost(host, interval, done) {
 /*
@@ -161,7 +156,7 @@ function pollHost(host, interval, done) {
        "intervals" : [ 60, 3600, 86400 ]
        },
 */
-    var conn, oids, tables, intfs, hres, hcache;
+    var oids, tables, intfs, hres, hcache;
 
     interval = interval.toString();
     if (!results[interval]) {
@@ -200,8 +195,7 @@ function pollHost(host, interval, done) {
     }
     hcache = cache[interval][host.name];
 
-    conn = new SNMP.Session(host.ip, host.community);
-    conn.getAll(hcache.oids, function (err, data) {
+    conn.getAll(hcache.oids, host.ip, host.community, function (err, data) {
         _.each(data, function (vb) {
             var oldVal, oldT;
             var oid = vb.oid;
@@ -217,7 +211,6 @@ function pollHost(host, interval, done) {
             }
             hres.counter[intf][table] = [ val, t ];
         });
-        conn.close();
         done(hres.rate);
     });
 }
@@ -312,9 +305,9 @@ function startPoller(interval) {
 
 function main() {
     log.debug('main()');
+    conn = new SNMP.Session();
     reindexer();
     startDb();
-    pollerStarter();
 }
 
 // vim: set ft=javascript:
