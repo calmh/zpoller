@@ -1,138 +1,105 @@
 #!/usr/bin/env node
 
 var _ = require('underscore');
-var Log = require('log'), log = new Log('info', process.stderr);
+var Log = require('log'), log = new Log('debug', process.stderr);
 var async = require('async');
 var config = require('../lib/config');
 var db = require('../lib/db');
-var q = require('promised-io');
 var tm = require('../lib/targetmaker');
 var util = require('util');
 var SNMP = require('snmp-native');
 var mongodb = require('mongodb');
 
-setTimeout(function () {
-config.load(main);
-}, 1000);
-
-function getTargets() {
-    var d = q.defer();
-    db.collection('targets', function (error, collection) {
-        collection.find().toArray(function (error, result) {
-            if (error) {
-                return d.reject(error);
-            }
-
-            d.resolve(result);
-        });
+config.ready(function () {
+    log.debug('INIT: Config ready.');
+    db.ready(function () {
+        log.debug('INIT: DB ready.');
+        main();
     });
-    return d.promise;
+});
+
+function getTargets(callback) {
+    log.debug('getTargets()');
+    db.pooledClient.collection('targets', function (error, collection) {
+        collection.find().toArray(callback);
+    });
 }
 
-function maxConfigChanged(collection) {
-    var d = q.defer();
-    collection.mapReduce(function() { emit ('maxCreated', this.created) }, function (key, arr) { return Math.max.apply(null, arr); }, { out: { inline: 1 }, safe: true }, function (err, res) {
-        if (err) {
-            return d.reject(err);
-        }
-        if (res.length === 1) {
-            d.resolve(res[0].value);
-        } else {
-            d.resolve(0);
-        }
-    });
-    return d.promise;
-}
-
-function hostsToIndex() {
-    var d = q.defer();
-
-    var pclient = _.bind(q.convertNodeAsyncFunction(db.client), db);
-    pclient().then(function (client) {
-        var pcollection = _.bind(q.convertNodeAsyncFunction(client.collection), client);
-
-        var changeDate = pcollection('config').then(function (coll) {
-            return maxConfigChanged(coll);
+function hostsToIndex(callback) {
+    log.debug('hostsToIndex()');
+    function getChangedDate(callback) {
+        log.debug('getChangedDate()');
+        db.collection('config', function (error, collection) {
+            collection.mapReduce(function() { emit ('maxCreated', this.created) }, function (key, arr) { return Math.max.apply(null, arr); }, { out: { inline: 1 }, safe: true }, function (err, res) {
+                if (err) {
+                    callback(err);
+                }
+                if (res.length === 1) {
+                    callback(null, res[0].value);
+                } else {
+                    callback(null, 0);
+                }
+            });
         });
+    }
 
-        changeDate.then(function (cd) {
-            pcollection('hosts').then(function (coll) {
-                var intv = Math.floor(Date.now() / 1000) - 86400;
-                var q = { $or: [
-                    { indexed: { $lte: cd } }, // Configuration has changed since last index
+    function getHostsToIndex(cd, callback) {
+        log.debug('getHostsToIndex()');
+        db.collection('hosts', function (err, collection) {
+            var intv = Math.floor(Date.now() / 1000) - 86400;
+            var q = { $or: [
+                { indexed: { $lte: cd } }, // Configuration has changed since last index
                 { indexed: { $lte: intv } } // The reindexing interval has passed
             ] };
-                var f = { name: 1, ip: 1, community: 1 };
-                coll.find(q, f, { safe: true }).toArray(function (err, hs) {
-                    _.each(hs, function (h) {
-                        delete h._id;
-                    });
-                    d.resolve(hs);
-                    client.close();
+            var f = { name: 1, ip: 1, community: 1 };
+            collection.find(q, f, { safe: true }).toArray(function (err, hs) {
+                _.each(hs, function (h) {
+                    delete h._id;
                 });
+                callback(null, hs);
             });
         });
-    });
+    }
 
-    return d.promise;
+    async.waterfall([getChangedDate, getHostsToIndex], callback);
 }
 
-function getPackages() {
-    var pclient = _.bind(q.convertNodeAsyncFunction(db.client), db);
-    var pkgs = pclient().then(function (client) {
-        var pcollection = _.bind(q.convertNodeAsyncFunction(client.collection), client);
-
-        return pcollection('config').then(function (coll) {
-            var d = q.defer();
-
-            coll.find().toArray(function (err, pkgs) {
-                d.resolve(pkgs);
-                client.close();
-            });
-
-            return d.promise;
-        });
+function getPackages(callback) {
+    log.debug('getPackages()');
+    db.collection('config', function (err, coll) {
+        coll.find().toArray(callback);
     });
-    return pkgs;
 }
 
 function updateTargets(res) {
-    var pclient = _.bind(q.convertNodeAsyncFunction(db.client), db);
-    pclient().then(function (client) {
-        var updates = [];
-        var pcollection = _.bind(q.convertNodeAsyncFunction(client.collection), client);
+    log.debug('updateTargets()');
 
-        pcollection('targets').then(function (coll) {
-            var pupdate = _.bind(q.convertNodeAsyncFunction(coll.update), coll);
-            _.each(res, function (host) {
-                log.debug('Updating target for host: ' + host.name);
-                updates.push(pupdate({ host: host.name }, { $set: host }, { safe: true, upsert: true }));
-            });
+    db.collection('targets', function (error, coll) {
+        _.each(res, function (host) {
+            log.debug('Updating target for host: ' + host.name);
+            coll.update({ name: host.name }, { $set: host }, { upsert: true });
         });
+    });
 
-        pcollection('hosts').then(function (coll) {
-            var pupdate = _.bind(q.convertNodeAsyncFunction(coll.update), coll);
-            _.each(res, function (host) {
-                log.debug('Updating host record for host: ' + host.name);
-                updates.push(pupdate({ name: host.name }, { $set: { indexed: host.indexed, uptimeWhenIndexed: host.uptimeWhenIndexed } }, { safe: true }));
-            });
-        });
-
-        q.all(updates).then(function () {
-            client.close();
+    db.collection('hosts', function (error, coll) {
+        _.each(res, function (host) {
+            log.debug('Updating host record for host: ' + host.name);
+            coll.update({ name: host.name }, { $set: { indexed: host.indexed, uptimeWhenIndexed: host.uptimeWhenIndexed }});
         });
     });
 }
 
 function reindexer() {
+    log.debug('reindexer()');
     var interval = 300*1000;
 
-    hostsToIndex().then(function (hosts) {
+    hostsToIndex(function (error, hosts) {
         var pkgs, res;
 
         if (hosts.length > 0) {
             log.info('Going to reindex ' + hosts.length + ' hosts.');
-            getPackages().then(function (pkgs) {
+            // FIXME: rewrite ffs
+            getPackages(function (err, pkgs) {
                 var queue = async.queue(function (host, callback) {
                     tm.indexHost(host, pkgs, function (error, result) {
                         if (result && !error) {
@@ -156,32 +123,25 @@ var cache = {};
 var results = {};
 
 function pollerStarter() {
+    log.debug('pollerStarter()');
     var interval = 60*1000;
 
-    q.when(getTargets(), function (targets) {
-        hosts = {};
-
-        _.each(targets, function (target) {
-            hosts[target.name] = target;
-
-            // Check all intervals for running pollers
-            _.each(target.interfaces, function (intf) {
-                _.each(intf.tables, function (table) {
-                    var intervalName = table.intervals.join('-');
-                    if (!pollers[intervalName]) {
-                        pollers[intervalName] = true;
-                        startPoller(table.intervals);
-                    };
-                });
-            });
+    getPackages(function (error, configs) {
+        var intervals = _.pluck(configs, 'intervals');
+        _.each(intervals, function (interval) {
+            var intervalName = interval.join('-');
+            if (!pollers[intervalName]) {
+                pollers[intervalName] = true;
+                startPoller(interval);
+            };
         });
-
-        setTimeout(pollerStarter, interval);
     });
+
+    setTimeout(pollerStarter, interval);
 }
 
 function pollHost(host, interval, done) {
-    /*
+/*
        {
        "_id" : ObjectId("4f70b8306769195d20a83413"),
        "community" : "nym.se",
@@ -200,7 +160,7 @@ function pollHost(host, interval, done) {
        "oid" : ".1.3.6.1.2.1.31.1.1.1.6.1",
        "intervals" : [ 60, 3600, 86400 ]
        },
-       */
+*/
     var conn, oids, tables, intfs, hres, hcache;
 
     interval = interval.toString();
@@ -303,8 +263,10 @@ function startDb() {
 }
 
 function startPoller(interval) {
+    log.debug('startPoller()');
     var delay = interval[0] * 1000;
     function pollerLoop() {
+        log.debug('pollerLoop()');
         var startTime = Date.now();
         var nhosts = 0;
         var ncounters = 0;
@@ -312,11 +274,10 @@ function startPoller(interval) {
 
         // FIXME: Gah!
         function pollSingleHost(target, callback) {
-            log.debug('Polling ' + target.name);
+            log.debug('pollSingleHost(' + target.name + ')');
             nhosts += 1;
 
             pollHost(target, interval, function (result) {
-                var done = 0;
                 if (_.size(result) > 0) {
                     ncounters += _.size(result);
                     var tasks = _.map(interval, function (ival) {
@@ -341,13 +302,16 @@ function startPoller(interval) {
             setTimeout(pollerLoop, sleep);
         };
 
-        queue.push(_.values(hosts));
+        getTargets(function (error, targets) {
+            queue.push(_.values(targets));
+        });
     }
 
     pollerLoop();
 }
 
 function main() {
+    log.debug('main()');
     reindexer();
     startDb();
     pollerStarter();
