@@ -11,24 +11,22 @@ var util = require('util');
 var SNMP = require('snmp-native');
 var mongodb = require('mongodb');
 
+setTimeout(function () {
 config.load(main);
+}, 1000);
 
 function getTargets() {
-    var pclient = _.bind(q.convertNodeAsyncFunction(db.client), db);
-    return pclient().then(function (client) {
-        var pcollection = _.bind(q.convertNodeAsyncFunction(client.collection), client);
-        return pcollection('targets').then(function (collection) {
-            var d = q.defer();
-            collection.find().toArray(function (error, result) {
-                if (error) {
-                    return d.reject(error);
-                }
+    var d = q.defer();
+    db.collection('targets', function (error, collection) {
+        collection.find().toArray(function (error, result) {
+            if (error) {
+                return d.reject(error);
+            }
 
-                d.resolve(result);
-            });
-            return d.promise;
+            d.resolve(result);
         });
     });
+    return d.promise;
 }
 
 function maxConfigChanged(collection) {
