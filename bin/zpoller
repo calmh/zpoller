@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 var _ = require('underscore');
-var Log = require('log'), log = new Log('debug', process.stderr);
+var Log = require('log'), log = new Log('info', process.stderr);
 var async = require('async');
 var config = require('../lib/config');
 var db = require('../lib/db');
@@ -283,8 +283,7 @@ function startPoller(interval) {
             });
         };
 
-        var queue = async.queue(pollSingleHost, config.general.concurrency.poll);
-        queue.drain = function () {
+        function pollComplete() {
             var endTime = Date.now();
             log.info('SNMP: ' + nhosts + ' hosts, ' + ncounters + ' counters in ' + (endTime - startTime) + ' ms (' + (1000 * ncounters / (endTime - startTime)).toFixed(1) + ' reqs/s).');
             var now = Date.now();
@@ -296,7 +295,7 @@ function startPoller(interval) {
         };
 
         getTargets(function (error, targets) {
-            queue.push(_.values(targets));
+            async.forEach(_.values(targets), pollSingleHost, pollComplete);
         });
     }
 
