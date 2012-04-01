@@ -4,6 +4,7 @@
     "version": "0.0.1",
     "engine": "node >= 0.6.12",
     "scripts":  {
+        "start": "./bin/zconfig ; ./bin/zpoller",
         "test": "./node_modules/.bin/mocha test/*.js"
     },
     "dependencies": {
