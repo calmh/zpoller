@@ -8,7 +8,7 @@
 
   # Select an OID to index on. This means we will fetch the subtree below
   # this OID and use whatever we get back as the identifier for this object.
-  # In case you use ifName (like below) it means we"ll follow the same
+  # In case you use ifName (like below) it means we'll follow the same
   # interface around even if it changes ifIndex, as long as the name remains
   # the same.
   index: .1.3.6.1.2.1.31.1.1.1.1
@@ -34,7 +34,7 @@
       rhs: 10000
 
   # Collect the following OIDs to the named tables. If more than one OID
-  # maps to the same table, we"ll use the first that the host successfully
+  # maps to the same table, we'll use the first that the host successfully
   # responds to. This can be used to try 64 bit counters but fall back to 32
   # bit counters if they don"t exist.
   collect:

@@ -18,10 +18,10 @@ config.ready(function () {
     });
 });
 
-function getTargets(callback) {
+function getTargets(interval, callback) {
     log.debug('getTargets()');
     db.pooledClient.collection('targets', function (error, collection) {
-        collection.find().toArray(callback);
+        collection.find({"interfaces.tables.intervals": interval}).toArray(callback);
     });
 }
 
@@ -93,6 +93,24 @@ function reindexer() {
     log.debug('reindexer()');
     var interval = 60*1000;
 
+    if (!reindexer.queue) {
+        // FIXME: rewrite ffs
+        reindexer.queue = async.queue(function (host, callback) {
+            tm.indexHost(host, reindexer.pkgs, function (error, result) {
+                if (result && !error) {
+                    updateTargets([result]);
+                }
+                callback();
+            });
+        }, config.general.concurrency.reindex);
+
+        reindexer.queue.empty = function () {
+            setTimeout(reindexer, interval);
+        };
+
+        log.debug('Created reindexing queue with concurrency ' + config.general.concurrency.reindex);
+    }
+
     getPackages(function (err, pkgs) {
         // Check if we need to start any new pollers.
         var intervals = _.pluck(pkgs, 'intervals');
@@ -108,21 +126,10 @@ function reindexer() {
         hostsToIndex(function (error, hosts) {
             if (hosts.length > 0) {
                 log.info('Going to reindex ' + hosts.length + ' hosts.');
-                // FIXME: rewrite ffs
-                var queue = async.queue(function (host, callback) {
-                    tm.indexHost(host, pkgs, function (error, result) {
-                        if (result && !error) {
-                            updateTargets([result]);
-                        }
-                        callback();
-                    });
-                }, config.general.concurrency.reindex);
-
-                queue.empty = function () {
-                    setTimeout(reindexer, interval);
-                };
-                queue.push(hosts);
+                reindexer.pkgs = pkgs;
+                reindexer.queue.push(hosts);
             } else {
+                reindexer.pkgs = undefined;
                 setTimeout(reindexer, interval);
             }
         });
@@ -180,14 +187,14 @@ function pollHost(host, interval, done) {
             intfs: {}
         };
         hcache = cache[interval][host.name];
-        _.each(host.interfaces, function (intf, ifName) {
+        _.each(host.interfaces, function (intf) {
             _.each(intf.tables, function (table) {
                 if (table.intervals.toString() === interval) {
                     hcache.oids.push(tm.unittest.parseOid(table.oid));
                     hcache.tables[table.oid] = table.table;
-                    hcache.intfs[table.oid] = ifName;
-                    if (!hres.counter[ifName]) {
-                        hres.counter[ifName] = {};
+                    hcache.intfs[table.oid] = intf.name;
+                    if (!hres.counter[intf.name]) {
+                        hres.counter[intf.name] = {};
                     }
                 }
             });
@@ -218,6 +225,7 @@ function pollHost(host, interval, done) {
 var dbQueue;
 function startDb() {
     var startTime = 0;
+    var usedTime = 0;
     var processed = 0;
     function dbProcessor(task, callback) {
         var result = task.result;
@@ -247,11 +255,14 @@ function startDb() {
     dbQueue = async.queue(dbProcessor, config.general.concurrency.database);
     dbQueue.drain = function () {
         var endTime = Date.now();
-        if (startTime) {
-            log.info('DB: ' + processed + ' updates in ' + (endTime - startTime) + ' ms (' + (1000 * processed / (Date.now() - startTime)).toFixed(1) + ' reqs/s).');
-        }
+        usedTime += endTime - startTime;
         startTime = 0;
-        processed = 0;
+        if (processed > 100) {
+            log.info('DB: ' + processed + ' updates in ' + usedTime + ' ms (' + (1000 * processed / usedTime).toFixed(1) + ' reqs/s).');
+            startTime = 0;
+            usedTime = 0;
+            processed = 0;
+        }
     };
 }
 
@@ -294,8 +305,11 @@ function startPoller(interval) {
             setTimeout(pollerLoop, sleep);
         };
 
-        getTargets(function (error, targets) {
-            async.forEach(_.values(targets), pollSingleHost, pollComplete);
+        log.info('SNMP: Poller ' + interval.join('-') + ' loading targets...');
+        getTargets(interval[0], function (error, targets) {
+            var hosts = _.values(targets);
+            log.info('SNMP: Poller ' + interval.join('-') + ' starting poll for ' + hosts.length + ' hosts.');
+            async.forEach(hosts, pollSingleHost, pollComplete);
         });
     }
 
