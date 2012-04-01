@@ -269,6 +269,8 @@ function startDb() {
 function startPoller(interval) {
     log.debug('startPoller()');
     var delay = interval[0] * 1000;
+    var intervalName = interval.join('-');
+
     function pollerLoop() {
         log.debug('pollerLoop()');
         var startTime = Date.now();
@@ -305,10 +307,10 @@ function startPoller(interval) {
             setTimeout(pollerLoop, sleep);
         };
 
-        log.info('SNMP: Poller ' + interval.join('-') + ' loading targets...');
-        getTargets(interval[0], function (error, targets) {
+        log.info('SNMP: Poller ' + intervalName + ' loading targets...');
+        getTargets(intervalName, function (error, targets) {
             var hosts = _.values(targets);
-            log.info('SNMP: Poller ' + interval.join('-') + ' starting poll for ' + hosts.length + ' hosts.');
+            log.info('SNMP: Poller ' + intervalName + ' starting poll for ' + hosts.length + ' hosts.');
             async.forEach(hosts, pollSingleHost, pollComplete);
         });
     }
