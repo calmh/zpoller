@@ -1,5 +1,6 @@
 .*.swp
-conf/general.yml
-conf/hosts.csv
-conf/packages.yml
+conf/*.yml
+conf/*.csv
+gmon.out
 node_modules
+v8.log
