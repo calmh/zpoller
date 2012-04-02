@@ -202,7 +202,7 @@ function pollHost(host, interval, done) {
     }
     hcache = cache[interval][host.name];
 
-    conn.getAll(hcache.oids, host.ip, host.community, function (err, data) {
+    conn.getAll({ oids: hcache.oids, host: host.ip, community: host.community }, function (err, data) {
         _.each(data, function (vb) {
             var oldVal, oldT;
             var oid = vb.oid;
