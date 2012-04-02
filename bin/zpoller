@@ -320,7 +320,7 @@ function startPoller(interval) {
 
 function main() {
     log.debug('main()');
-    conn = new SNMP.Session();
+    conn = new SNMP.Session(config.general.snmp);
     reindexer();
     startDb();
 }

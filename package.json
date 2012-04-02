@@ -16,7 +16,7 @@
         "js-yaml": "0.3.x",
         "log": "1.2.x",
         "mongodb": "0.9.x",
-        "snmp-native": "1.0.x",
+        "snmp-native": "git://github.com/calmh/node-snmp-native.git",
         "underscore": "1.2.x"
     },
     "devDependencies": {

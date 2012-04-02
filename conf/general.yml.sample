@@ -10,3 +10,5 @@ concurrency:
   reindex: 16
   poll: 512
   database: 2
+snmp:
+  timeouts: [ 5000, 5000, 5000, 5000 ]
