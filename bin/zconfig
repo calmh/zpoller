@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 var _ = require('underscore');
-var Log = require('log'), log = new Log('debug', process.stderr);
-var config = require('../lib/config');
 var async = require('async');
-var db = require('../lib/db');
+var config = require('../lib/config');
 var crypto = require('crypto/md5');
+var db = require('../lib/db');
+var Log = require('log'), log = new Log('debug', process.stderr);
 
 config.ready(function () {
     db.ready(main);
@@ -19,13 +19,13 @@ function updateConfig(callback) {
             coll.update({ }, { $set: { remove: true } }, { safe: true, multi: true }, callback);
         }
 
-        function upsertPackages(err, callback) {
+        function upsertPackages(callback) {
             log.debug('updateConfig/upsertPackages()');
             var cnt = 0;
             var len = config.packages.length;
             _.each(config.packages, function (p) {
                 p.key = crypto.hex_md5(JSON.stringify(p));
-                coll.update({ key: p.key }, { $set: p, $unset: { remove: 1 } }, { safe: true, upsert: true }, function () {
+                coll.update({ key: p.key }, { $set: p, $unset: { remove: 1 } }, { safe: true, upsert: true }, function (err, docs) {
                     if (++cnt === len) {
                         callback();
                     }
@@ -38,16 +38,16 @@ function updateConfig(callback) {
             coll.remove({ remove: true }, { safe: true }, callback);
         }
 
-        function setCreatedDate(err, callback) {
+        function setCreatedDate(callback) {
             log.debug('updateConfig/setCreatedDate()');
             coll.update({ created: null }, { $set: { created: Math.floor(Date.now() / 1000) } }, { multi: true, safe: true }, callback);
         }
 
-        async.waterfall([flagForRemoval, upsertPackages, removeOld, setCreatedDate], callback);
+        async.series([flagForRemoval, upsertPackages, removeOld, setCreatedDate], callback);
     });
 }
 
-function updateHosts(err, callback) {
+function updateHosts(callback) {
     log.debug('updateHosts()');
     db.collection('hosts', function (err, coll) {
         function flagForRemoval(callback) {
@@ -55,7 +55,7 @@ function updateHosts(err, callback) {
             coll.update({ }, { $set: { remove: true } }, { safe: true, multi: true }, callback);
         }
 
-        function upsertHosts(err, callback) {
+        function upsertHosts(callback) {
             log.debug('updateHosts/upsertHosts()');
             var cnt = 0;
             var len = config.hosts.length;
@@ -63,6 +63,7 @@ function updateHosts(err, callback) {
                 var obj = { name: host[0], ip: host[1], community: host[2] };
                 coll.update({ name: obj.name }, { $set: obj, $unset: { remove: 1 } }, { safe: true, upsert: true }, function () {
                     if (++cnt === len) {
+                        log.debug('updateHosts/upsertHosts() - updated ' + len + ' hosts');
                         callback();
                     }
                 });
@@ -74,18 +75,18 @@ function updateHosts(err, callback) {
             coll.remove({ remove: true }, { safe: true }, callback);
         }
 
-        function setCreatedDate(err, callback) {
+        function setCreatedDate(callback) {
             log.debug('updateHosts/setCreatedDate()');
             coll.update({ created: null }, { $set: { created: Math.floor(Date.now() / 1000), indexed: 0 } }, { multi: true, safe: true }, callback);
         }
 
-        async.waterfall([flagForRemoval, upsertHosts, removeOld, setCreatedDate], callback);
+        async.series([flagForRemoval, upsertHosts, removeOld, setCreatedDate], callback);
     });
 }
 
 function main() {
     log.debug('main()');
-    async.waterfall([updateConfig, updateHosts], function () {
+    async.series([updateConfig, updateHosts], function () {
         log.debug('main/done()');
         db.close();
     });

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 var _ = require('underscore');
-var Log = require('log'), log = new Log('info', process.stderr);
+var Log = require('log'), log = new Log('debug', process.stderr);
 var async = require('async');
 var config = require('../lib/config');
 var db = require('../lib/db');
@@ -165,7 +165,6 @@ function pollHost(host, interval, done) {
 */
     var oids, tables, intfs, hres, hcache;
 
-    interval = interval.toString();
     if (!results[interval]) {
         results[interval] = {};
         cache[interval] = {};
@@ -189,7 +188,7 @@ function pollHost(host, interval, done) {
         hcache = cache[interval][host.name];
         _.each(host.interfaces, function (intf) {
             _.each(intf.tables, function (table) {
-                if (table.intervals.toString() === interval) {
+                if (table.intervals === interval) {
                     hcache.oids.push(tm.unittest.parseOid(table.oid));
                     hcache.tables[table.oid] = table.table;
                     hcache.intfs[table.oid] = intf.name;
@@ -283,7 +282,7 @@ function startPoller(interval) {
             log.debug('pollSingleHost(' + target.name + ')');
             nhosts += 1;
 
-            pollHost(target, interval, function (result) {
+            pollHost(target, intervalName, function (result) {
                 if (_.size(result) > 0) {
                     ncounters += _.size(result);
                     var tasks = _.map(interval, function (ival) {
