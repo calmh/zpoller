@@ -1,0 +1,71 @@
+#!/usr/bin/env node
+
+var _ = require('underscore');
+var config = require('../lib/config');
+var db = require('../lib/db');
+var Log = require('log'), log = new Log('info', process.stderr);
+var express = require('express');
+
+config.ready(function () {
+    "use strict";
+    if (config.general.loglevel) {
+        log = new Log(config.general.loglevel, process.stderr);
+    }
+    db.ready(main);
+});
+
+function getTargets(callback) {
+    log.debug('getTargets()');
+    db.pooledClient.collection('targets', function (error, collection) {
+        collection.find({}, {name:1, ip:1}).toArray(callback);
+    });
+}
+
+function getTargetInterfaces(target, callback) {
+    log.debug('getTargetInterfaces(' + target + ')');
+    db.pooledClient.collection('targets', function (error, collection) {
+        collection.find({ name: target }, { name:1, ip:1, 'interfaces.name':1, 'interfaces.metadata':1, 'interfaces.tables.table':1, 'interfaces.tables.intervals':1 }).toArray(callback);
+    });
+}
+
+function getData(target, interface, callback) {
+    log.debug('getData(' + target + ', ' + interface + ')');
+    db.pooledClient.collection('host.' + target, function (error, collection) {
+        var sel = {};
+        sel['rate.' + interface] = 1;
+        collection.find({ }, sel).toArray(callback);
+    });
+}
+
+var app;
+function main() {
+    "use strict";
+    log.debug('main()');
+    app = express.createServer();
+
+    app.get('/targets', function (req, res) {
+        res.contentType('json');
+        getTargets(function (err, result) {
+            res.send(JSON.stringify(result));
+        });
+    });
+
+    app.get('/target/:target', function (req, res) {
+        res.contentType('json');
+        getTargetInterfaces(req.params.target, function (err, result) {
+            res.send(JSON.stringify(result));
+        });
+    });
+
+    app.get('/data/:target/:interface', function (req, res) {
+        res.contentType('json');
+        getData(req.params.target, req.params.interface, function (err, result) {
+            res.send(JSON.stringify(result));
+        });
+    });
+
+    app.listen(8080);
+    log.debug('main() done');
+}
+
+// vim: set ft=javascript:

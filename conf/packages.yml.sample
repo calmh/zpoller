@@ -51,12 +51,8 @@
     - oid: .1.3.6.1.2.1.2.2.1.17
       table: ifOutUcastPkts
 
-  # Define which intervals to collect values at. This should be an ordered
-  # list, with the smallest interval at the front. All following intervals
-  # should be multiples of the first one. In reality, the poller will collect
-  # data at the rate specified by the first interval and average it to the
-  # other intervals as needed.
-  intervals: [ 60, 3600, 86400 ]
+  # Define which interval to collect values at.
+  interval: 60
 
   # Collect these metadata fields for each interface. They are not used by the
   # poller but can be shown for informational purposes.
@@ -95,6 +91,6 @@
     - oid: .1.3.6.1.2.1.2.2.1.20
       table: ifOutErrors
 
-  intervals: [ 3600, 86400 ]
+  interval: 3600
 
   graphs: []
