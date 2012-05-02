@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 var _ = require('underscore');
-var Log = require('log'), log = new Log('debug', process.stderr);
+var Log = require('log'), log = new Log('info', process.stderr);
 var async = require('async');
 var config = require('../lib/config');
 var db = require('../lib/db');
@@ -11,6 +11,9 @@ var SNMP = require('snmp-native');
 var mongodb = require('mongodb');
 
 config.ready(function () {
+    if (config.general.loglevel) {
+        log = new Log(config.general.loglevel, process.stderr);
+    }
     log.debug('INIT: Config ready.');
     db.ready(function () {
         log.debug('INIT: DB ready.');
@@ -284,6 +287,7 @@ function startPoller(interval) {
 
             pollHost(target, intervalName, function (result) {
                 if (_.size(result) > 0) {
+                    log.debug('pollSingleHost(' + target.name + ') - ' + _.size(result) + ' counters');
                     ncounters += _.size(result);
                     var tasks = _.map(interval, function (ival) {
                         return { _id: Math.floor(Date.now() / 1000 / ival) * ival, result: result, collection: 'host.' + target.name + '.i' + ival};

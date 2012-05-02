@@ -1,4 +1,5 @@
 --- # This defines the start of a YAML file.
+loglevel: debug
 database:
   # Indentation is relevant.
   host: localhost

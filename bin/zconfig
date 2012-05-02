@@ -5,9 +5,12 @@ var async = require('async');
 var config = require('../lib/config');
 var crypto = require('crypto/md5');
 var db = require('../lib/db');
-var Log = require('log'), log = new Log('debug', process.stderr);
+var Log = require('log'), log = new Log('info', process.stderr);
 
 config.ready(function () {
+    if (config.general.loglevel) {
+        log = new Log(config.general.loglevel, process.stderr);
+    }
     db.ready(main);
 });
 
