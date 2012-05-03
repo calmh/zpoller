@@ -17,14 +17,14 @@ config.ready(function () {
 function getTargets(callback) {
     log.debug('getTargets()');
     db.pooledClient.collection('targets', function (error, collection) {
-        collection.find({}, {name:1, ip:1}).toArray(callback);
+        collection.find({}, {name:1, ip:1}).sort({name:1}).toArray(callback);
     });
 }
 
 function getTargetInterfaces(target, callback) {
     log.debug('getTargetInterfaces(' + target + ')');
     db.pooledClient.collection('targets', function (error, collection) {
-        collection.find({ name: target }, { name:1, ip:1, 'interfaces.name':1, 'interfaces.metadata':1, 'interfaces.tables.table':1, 'interfaces.tables.intervals':1 }).toArray(function (err, data) {
+        collection.find({ name: target }, { name:1, ip:1, 'interfaces.name':1, 'interfaces.metadata':1, 'interfaces.tables.table':1, 'interfaces.tables.intervals':1 }).sort({name:1}).toArray(function (err, data) {
             if (err) {
                 callback(err);
             } else {
