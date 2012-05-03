@@ -4,6 +4,7 @@
     "version": "0.0.1",
     "engine": "node >= 0.6.12",
     "scripts":  {
+        "install": "make",
         "start": "./bin/zconfig ; ./bin/zpoller",
         "test": "./node_modules/.bin/mocha test/*.js"
     },
@@ -17,7 +18,9 @@
         "log": "1.2.x",
         "mongodb": "0.9.x",
         "snmp-native": "git://github.com/calmh/node-snmp-native.git",
-        "underscore": "1.3.x"
+        "underscore": "1.3.x",
+        "less": "1.3.x",
+        "uglify-js": "1.2.x"
     },
     "devDependencies": {
         "mocha": "0.8.x",

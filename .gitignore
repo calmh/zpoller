@@ -4,3 +4,5 @@ conf/*.csv
 gmon.out
 node_modules
 v8.log
+public/client.min.js
+public/styles.css
