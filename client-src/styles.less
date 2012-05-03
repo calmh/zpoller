@@ -1,32 +1,80 @@
+.border-radius (@radius) {
+    border-radius: @radius;
+    -moz-border-radius: @radius;
+    -webkit-border-radius: @radius;
+}
+
+.box-shadow (@x: 0, @y: 0, @blur: 1px, @color: #000) {
+    box-shadow: @arguments;
+    -moz-box-shadow: @arguments;
+    -webkit-box-shadow: @arguments;
+}
+
+.linear-gradient (@c1, @c2) {
+    background-color: @c1;
+    background-image: -webkit-gradient(linear, 0 0, 0 100%, from(@c1), to(@c2));
+    background-image: -webkit-linear-gradient(@c1, @c2);
+    background-image: -moz-linear-gradient(top, @c1, @c2);
+    background-image: -ms-linear-gradient(@c1, @c2);
+    background-image: -o-linear-gradient(@c1, @c2);
+    background-image: linear-gradient(@c1, @c2);
+    background-repeat: no-repeat;
+}
+
 body {
     font-family: Helvetica, Arial, sans-serif;
 }
-#targets, #interfaces, #graphs {
-    border: 1px solid #444;
-    height: 90%;
-    overflow: scroll;
+a {
+    font-weight: bold;
+    text-decoration: none;
+    color: #38a;
+}
+a:hover {
+    text-decoration: underline;
+}
+.container {
     padding: 10px;
+    margin: 5px;
+
+    border: 1px solid #888;
+    .border-radius(5px);
+    .linear-gradient(#eee, #ccc);
+    .box-shadow(0px, 0px, 4px, #ccc);
+}
+h1, h2 {
+    color: #333;
+    text-shadow: 1px 1px 1px #fff;
+}
+#targets, #interfaces, #graphs {
+    height: 100%;
+    overflow: scroll;
 }
 #targets {
-    width: 280px;
+    width: 300px;
     position: absolute;
     left: 0px;
     top: 0px;
 }
 #interfaces {
-    width: 280px;
+    width: 300px;
     position: absolute;
     left: 300px;
     top: 0px;
 }
 #graphs {
-    width: 650px;
+    width: 690px;
     position: absolute;
     left: 600px;
     top: 0px;
 }
+.graphContainer {
+    padding: 10px;
+    background-color: #fff;
+    margin: 10px;
+    border: 1px solid #888;
+    .border-radius(3px);
+}
 .graph {
     width: 600px;
     height: 200px;
-    margin: 10px;
 }

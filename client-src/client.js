@@ -1,5 +1,7 @@
 var $tl, $il, $gr;
 
+var host = 'http://zdev.nym.se:8080';
+
 function formatter(num, axis) {
     if (axis.max >= 1e9) {
         return (num / 1e9).toFixed(1) + 'G';
@@ -50,15 +52,17 @@ function drawInGraph(id) {
 }
 
 function showInterface(target, intf) {
-    jQuery.ajax('http://zdev.nym.se:8080/data/' + target.name + '/' + intf.name + '/7200')
+    var tgt = encodeURIComponent(target.name);
+    var int = encodeURIComponent(intf.name);
+    jQuery.ajax(host + '/data/' + tgt + '/' + int + '/7200')
     .done(drawInGraph('#hourlyGraph'));
-    jQuery.ajax('http://zdev.nym.se:8080/data/' + target.name + '/' + intf.name + '/86400')
+    jQuery.ajax(host + '/data/' + tgt + '/' + int + '/86400')
     .done(drawInGraph('#dailyGraph'));
 };
 
 function showTarget(target) {
     $il.empty();
-    jQuery.ajax('http://zdev.nym.se:8080/target/' + target.name).done(function (data) {
+    jQuery.ajax(host + '/target/' + encodeURIComponent(target.name)).done(function (data) {
         _.each(data.interfaces, function (intf) {
             $('#interfaceHeader').html(target.name);
             var $li = $('<li></li>');
@@ -90,7 +94,7 @@ $(document).ready(function () {
     $il = $('#interfaceList');
     $gr = $('#graphs');
 
-    jQuery.ajax('http://zdev.nym.se:8080/targets').done(function (data) {
+    jQuery.ajax(host + '/targets').done(function (data) {
         _.each(data, function (target) {
             var $li = $('<li></li>').addClass('target');
             var $a = $('<a>' + target.name + '</a>')
