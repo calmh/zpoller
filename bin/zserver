@@ -24,16 +24,31 @@ function getTargets(callback) {
 function getTargetInterfaces(target, callback) {
     log.debug('getTargetInterfaces(' + target + ')');
     db.pooledClient.collection('targets', function (error, collection) {
-        collection.find({ name: target }, { name:1, ip:1, 'interfaces.name':1, 'interfaces.metadata':1, 'interfaces.tables.table':1, 'interfaces.tables.intervals':1 }).toArray(callback);
+        collection.find({ name: target }, { name:1, ip:1, 'interfaces.name':1, 'interfaces.metadata':1, 'interfaces.tables.table':1, 'interfaces.tables.intervals':1 }).toArray(function (err, data) {
+            if (err) {
+                callback(err);
+            } else {
+                var res = data[0];
+                callback(null, res);
+            }
+        });
     });
 }
 
-function getData(target, interface, callback) {
+function getData(target, interface, seconds, callback) {
     log.debug('getData(' + target + ', ' + interface + ')');
     db.pooledClient.collection('host.' + target, function (error, collection) {
         var sel = {};
+        var cutoff = Math.floor(Date.now() / 1000 - seconds);
         sel['rate.' + interface] = 1;
-        collection.find({ }, sel).toArray(callback);
+        collection.find({ _id: { $gt: cutoff } }, sel).toArray(function (err, res) {
+            if (err) {
+                callback(err);
+            } else {
+                res = _.map(res, function (obj) { return { t: obj._id, v: obj.rate[interface] }; });
+                callback(null, res);
+            }
+        });
     });
 }
 
@@ -42,9 +57,11 @@ function main() {
     "use strict";
     log.debug('main()');
     app = express.createServer();
+    app.use(express.static(__dirname + '/../public'));
 
     app.get('/targets', function (req, res) {
         res.contentType('json');
+        res.header("Access-Control-Allow-Origin", "*");
         getTargets(function (err, result) {
             res.send(JSON.stringify(result));
         });
@@ -52,6 +69,7 @@ function main() {
 
     app.get('/target/:target', function (req, res) {
         res.contentType('json');
+        res.header("Access-Control-Allow-Origin", "*");
         getTargetInterfaces(req.params.target, function (err, result) {
             res.send(JSON.stringify(result));
         });
@@ -59,7 +77,16 @@ function main() {
 
     app.get('/data/:target/:interface', function (req, res) {
         res.contentType('json');
-        getData(req.params.target, req.params.interface, function (err, result) {
+        res.header("Access-Control-Allow-Origin", "*");
+        getData(req.params.target, req.params.interface, 3600, function (err, result) {
+            res.send(JSON.stringify(result));
+        });
+    });
+
+    app.get('/data/:target/:interface/:seconds', function (req, res) {
+        res.contentType('json');
+        res.header("Access-Control-Allow-Origin", "*");
+        getData(req.params.target, req.params.interface, parseInt(req.params.seconds, 10), function (err, result) {
             res.send(JSON.stringify(result));
         });
     });
