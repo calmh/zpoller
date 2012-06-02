@@ -63,7 +63,9 @@ function updateHosts(callback) {
             var cnt = 0;
             var len = config.hosts.length;
             _.each(config.hosts, function (host) {
-                var obj = { name: host[0], ip: host[1], community: host[2] };
+                // When we update a host, we reset `indexed` to be sure it gets reindexed
+                // the next time around.
+                var obj = { name: host[0], ip: host[1], community: host[2], indexed: 0 };
                 coll.update({ name: obj.name }, { $set: obj, $unset: { remove: 1 } }, { safe: true, upsert: true }, function () {
                     if (++cnt === len) {
                         log.debug('updateHosts/upsertHosts() - updated ' + len + ' hosts');
@@ -83,7 +85,16 @@ function updateHosts(callback) {
             coll.update({ created: null }, { $set: { created: Math.floor(Date.now() / 1000), indexed: 0 } }, { multi: true, safe: true }, callback);
         }
 
-        async.series([flagForRemoval, upsertHosts, removeOld, setCreatedDate], callback);
+        function cleanTargets(callback) {
+            // Remove all targets, to be sure that we get rid of old data.
+            // FIXME: Only remove targets for hosts that were removed.
+            log.debug('updateHosts/cleanTargets()');
+            db.collection('targets', function (err, coll) {
+                coll.remove({ }, { safe: true }, callback);
+            });
+        }
+
+        async.series([flagForRemoval, upsertHosts, removeOld, setCreatedDate, cleanTargets], callback);
     });
 }
 
