@@ -14,6 +14,13 @@ config.ready(function () {
     db.ready(main);
 });
 
+function getStatus(callback) {
+    log.debug('getStatus()');
+    db.pooledClient.collection('status', function (error, collection) {
+        collection.find({}).sort({poller:1}).toArray(callback);
+    });
+}
+
 function getTargets(callback) {
     log.debug('getTargets()');
     db.pooledClient.collection('targets', function (error, collection) {
@@ -58,6 +65,14 @@ function main() {
     log.debug('main()');
     app = express.createServer();
     app.use(express.static(__dirname + '/../public'));
+
+    app.get('/status', function (req, res) {
+        res.contentType('json');
+        res.header("Access-Control-Allow-Origin", "*");
+        getStatus(function (err, result) {
+            res.send(JSON.stringify(result));
+        });
+    });
 
     app.get('/targets', function (req, res) {
         res.contentType('json');
