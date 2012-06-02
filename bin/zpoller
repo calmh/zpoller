@@ -145,6 +145,29 @@ var cache = {};
 var results = {};
 var conn;
 
+function checkHostUptime(host, conn, callback) {
+    log.debug("checkHostUptime(" + host.name + ")");
+
+    conn.get({ oid: [1, 3, 6, 1, 2, 1, 1, 3, 0], host: host.ip, community: host.community }, function (err, varbinds) {
+        var uptime = 0;
+        if (err) {
+            callback(err);
+        } else {
+            uptime = varbinds[0].value;
+            diff = uptime - host.uptimeWhenIndexed;
+
+            if (diff <= 0) {
+                db.pooledClient.collection('hosts', function (error, collection) {
+                    collection.update({ name: host.name }, { $set: { indexed: 0 } });
+                });
+                log.info("checkHostUptime(" + host.name + ") - has rebooted, marked for reindexing");
+            }
+
+            callback(null, { rebooted: diff <= 0});
+        }
+    });
+}
+
 function pollHost(host, interval, done) {
 /*
        {
@@ -204,23 +227,32 @@ function pollHost(host, interval, done) {
     }
     hcache = cache[interval][host.name];
 
-    conn.getAll({ oids: hcache.oids, host: host.ip, community: host.community }, function (err, data) {
-        _.each(data, function (vb) {
-            var oldVal, oldT;
-            var oid = vb.oid;
-            var val = vb.value;
-            var t = Math.round((vb.receiveStamp + vb.sendStamp) / 2.0);
-            var oidS = '.' + oid.join('.');
-            var intf = hcache.intfs[oidS];
-            var table = hcache.tables[oidS];
-            if (hres.counter[intf][table]) {
-                oldVal = hres.counter[intf][table][0];
-                oldT = hres.counter[intf][table][1];
-                hres.rate['rate.' + intf + '.' + table] = Math.round((val - oldVal) / (t - oldT) * 1000);
-            }
-            hres.counter[intf][table] = [ val, t ];
-        });
-        done(hres.rate);
+    // Check the host uptime, which also serves as an 'SNMP ping'.
+    // If the SNMP get fails, the callback will be called with an error
+    // and we refrain from polling the host.
+    checkHostUptime(host, conn, function (err, result) {
+        if (err) {
+            done(hres.rate);
+        } else {
+            conn.getAll({ oids: hcache.oids, host: host.ip, community: host.community }, function (err, data) {
+                _.each(data, function (vb) {
+                    var oldVal, oldT;
+                    var oid = vb.oid;
+                    var val = vb.value;
+                    var t = Math.round((vb.receiveStamp + vb.sendStamp) / 2.0);
+                    var oidS = '.' + oid.join('.');
+                    var intf = hcache.intfs[oidS];
+                    var table = hcache.tables[oidS];
+                    if (hres.counter[intf][table]) {
+                        oldVal = hres.counter[intf][table][0];
+                        oldT = hres.counter[intf][table][1];
+                        hres.rate['rate.' + intf + '.' + table] = Math.round((val - oldVal) / (t - oldT) * 1000);
+                    }
+                    hres.counter[intf][table] = [ val, t ];
+                });
+                done(hres.rate);
+            });
+        }
     });
 }
 
