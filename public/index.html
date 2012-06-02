@@ -8,6 +8,8 @@
         <script src='client.min.js'></script>
     </head>
     <body>
+        <div id='status' class='container'>
+        </div>
         <div id='targets'>
             <div class='container'>
                 <h1>Targets</h1>
@@ -33,4 +35,16 @@
             </div>
         </div>
     </body>
+    <script type='x-tmpl' id='statusTemplate'>
+        <div class='statusItem'>
+            Poller <span class='statusPoller'><%= poller %></span> fetched <span class='statusCounter'><%= ncounters %></span> counters.<br />
+            Next poll
+            <% wait = Math.ceil((next - Date.now()) / 1000) %>
+            <% if (wait > 0) { %>
+            in <span class='statusNext'><%= wait %></span> s.
+            <% } else { %>
+            <span class='statusNext'>currently</span>.
+            <% } %>
+        </div>
+    </script>
 </html>

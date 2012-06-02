@@ -1,6 +1,6 @@
-var $tl, $il, $gr;
+var $tl, $il, $gr, statusTemplate;
 
-var host = 'http://zdev.nym.se:8080';
+var host = 'http://localhost:8080';
 
 function formatter(num, axis) {
     if (axis.max >= 1e9) {
@@ -89,10 +89,34 @@ function showTarget(target) {
     });
 }
 
+// Status updates
+
+var latestStatusData;
+function updateStatus() {
+    jQuery.ajax(host + '/status').done(function (data) {
+        latestStatusData = data;
+    });
+
+    setTimeout(updateStatus, 10000);
+}
+function displayStatus() {
+    if (latestStatusData) {
+        $('#status').empty();
+        _.each(latestStatusData, function (stat) {
+            var html = statusTemplate(stat);
+            var elem = $(html);
+            $('#status').append(elem);
+        });
+    }
+
+    setTimeout(displayStatus, 1000);
+}
+
 $(document).ready(function () {
     $tl = $('#targetList');
     $il = $('#interfaceList');
     $gr = $('#graphs');
+    statusTemplate = _.template(document.getElementById('statusTemplate').innerHTML);
 
     jQuery.ajax(host + '/targets').done(function (data) {
         _.each(data, function (target) {
@@ -114,5 +138,8 @@ $(document).ready(function () {
         showTarget({name: m[1]});
         showInterface({name: m[1]}, {name: m[2]});
     }
+
+    updateStatus();
+    displayStatus();
 });
 
