@@ -302,7 +302,7 @@ function startDb() {
 
 function startPoller(interval) {
     log.debug('startPoller()');
-    var delay = parseInt(interval, 10) * 1000;
+    var delay = interval * 1000;
 
     function pollerLoop() {
         log.debug('pollerLoop()');
@@ -331,11 +331,15 @@ function startPoller(interval) {
             var endTime = Date.now();
             log.info('SNMP: ' + nhosts + ' hosts, ' + ncounters + ' counters in ' + (endTime - startTime) + ' ms (' + (1000 * ncounters / (endTime - startTime)).toFixed(1) + ' reqs/s).');
             var now = Date.now();
+            var next = Math.ceil(Date.now() / delay) * delay;
             // We add a few ms to make sure we are not called before it's time.
             // Because sometimes sleep returns slightly before it should, and
             // then we might schedule a new polling round a millisecond later.
-            var sleep = Math.ceil(Date.now() / delay) * delay - now + 10;
+            var sleep = next - now + 10;
             setTimeout(pollerLoop, sleep);
+            db.pooledClient.collection('status', function (error, collection) {
+                collection.update({ poller: interval }, { $set: { nhosts: nhosts, ncounters: ncounters, start: startTime, end: endTime, next: next } }, { upsert: true });
+            });
         };
 
         log.info('SNMP: Poller ' + interval + ' loading targets...');
