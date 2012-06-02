@@ -75,8 +75,23 @@ function updateHosts(callback) {
             });
         }
 
-        function removeOld(callback) {
-            log.debug('updateHosts/removeOld()');
+        function removeTargets(callback) {
+            log.debug('updateHosts/removeTargets()');
+            coll.find({ remove: true }, { name: 1 }).toArray(function (err, data) {
+                if (data && data.length > 0) {
+                    var names = _.pluck(data, 'name');
+                    log.debug('updateHosts/removeTargets() - remove targets for ' + names.length + ' hosts');
+                    db.collection('targets', function (err, coll) {
+                        coll.remove({ name: { $in: names } }, { safe: true }, callback);
+                    });
+                } else {
+                    callback(err, data);
+                }
+            });
+        }
+
+        function removeHosts(callback) {
+            log.debug('updateHosts/removeHosts()');
             coll.remove({ remove: true }, { safe: true }, callback);
         }
 
@@ -85,16 +100,7 @@ function updateHosts(callback) {
             coll.update({ created: null }, { $set: { created: Math.floor(Date.now() / 1000), indexed: 0 } }, { multi: true, safe: true }, callback);
         }
 
-        function cleanTargets(callback) {
-            // Remove all targets, to be sure that we get rid of old data.
-            // FIXME: Only remove targets for hosts that were removed.
-            log.debug('updateHosts/cleanTargets()');
-            db.collection('targets', function (err, coll) {
-                coll.remove({ }, { safe: true }, callback);
-            });
-        }
-
-        async.series([flagForRemoval, upsertHosts, removeOld, setCreatedDate, cleanTargets], callback);
+        async.series([flagForRemoval, upsertHosts, removeTargets, removeHosts, setCreatedDate], callback);
     });
 }
 
