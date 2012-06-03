@@ -1,7 +1,5 @@
 var $tl, statusTemplate, targetTemplate, interfaceListTemplate;
 
-var host = 'http://localhost:8080';
-
 function formatter(num, axis) {
     if (axis.max >= 1e9) {
         return (num / 1e9).toFixed(1) + 'G';
@@ -54,9 +52,9 @@ function drawInGraph(id) {
 function showInterface(target, intf) {
     var tgt = encodeURIComponent(target.name);
     var int = encodeURIComponent(intf.name);
-    jQuery.ajax(host + '/data/' + tgt + '/' + int + '/7200')
+    jQuery.ajax('/data/' + tgt + '/' + int + '/7200')
     .done(drawInGraph('#hourlyGraph'));
-    jQuery.ajax(host + '/data/' + tgt + '/' + int + '/86400')
+    jQuery.ajax('/data/' + tgt + '/' + int + '/86400')
     .done(drawInGraph('#dailyGraph'));
     $('.selectedInterface').removeClass('selectedInterface');
     $('#interface-' + intf.name).addClass('selectedInterface');
@@ -67,7 +65,7 @@ function showTarget(target) {
     if (expandedTarget != target.name) {
         $('.selected').removeClass('selected');
         $('.interfaceList').remove();
-        jQuery.ajax(host + '/target/' + encodeURIComponent(target.name)).done(function (data) {
+        jQuery.ajax('/target/' + encodeURIComponent(target.name)).done(function (data) {
             var $elem = $(interfaceListTemplate({ target: target, interfaces: data.interfaces }));
             $('#target-' + target.name).addClass('selected').after($elem);
         });
@@ -79,7 +77,7 @@ function showTarget(target) {
 
 var latestStatusData;
 function updateStatus() {
-    jQuery.ajax(host + '/status').done(function (data) {
+    jQuery.ajax('/status').done(function (data) {
         latestStatusData = data;
     });
 
@@ -114,7 +112,7 @@ $(document).ready(function () {
     targetTemplate = _.template(document.getElementById('targetTemplate').innerHTML);
     interfaceListTemplate = _.template(document.getElementById('interfaceListTemplate').innerHTML);
 
-    jQuery.ajax(host + '/targets').done(function (data) {
+    jQuery.ajax('/targets').done(function (data) {
         _.each(data, function (target) {
             var $elem = $(targetTemplate(target));
             $tl.append($elem);
