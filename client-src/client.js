@@ -29,7 +29,7 @@ function drawInGraph(id) {
     var draw = function (data) {
         var options = {
             series: {
-                lines: { steps: true, fill: true }
+                lines: { fill: true }
             },
             xaxis: { mode: "time" },
             yaxis: { tickFormatter: formatter },
