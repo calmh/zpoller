@@ -119,6 +119,15 @@ function parseHash() {
     }
 }
 
+var graphsWidth;
+function adjustWidths() {
+    graphsWidth = graphsWidth || $('#graphs').width();
+    var width = $(window).width();
+    width -= graphsWidth;
+    width -= 3 * 20; // margin
+    $('#targets').css('width', width + 'px');
+}
+
 $(document).ready(function () {
     $tl = $('#targetList');
     statusTemplate = _.template(document.getElementById('statusTemplate').innerHTML);
@@ -134,9 +143,11 @@ $(document).ready(function () {
         parseHash();
     });
 
-    updateStatus();
-    displayStatus();
-
     $(window).bind('hashchange', parseHash);
+    $(window).resize(adjustWidths);
+
+    _.defer(adjustWidths);
+    _.defer(updateStatus);
+    _.defer(displayStatus);
 });
 
