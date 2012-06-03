@@ -51,7 +51,13 @@
             <% var il = interfaces.length; %>
             <ul>
                 <% for (var i = 0; i < il; i++) { %>
-                    <li id='interface-<%= interfaces[i].name %>'><a href='#<%= target.name %>/<%= interfaces[i].name %>'><%= interfaces[i].name %></a></li>
+                    <% intf = interfaces[i] %>
+                    <li id='interface-<%= intf.name %>'>
+                    <a href='#<%= target.name %>/<%= intf.name %>'><%= interfaces[i].name %></a>
+                    <% if (intf.metadata.alias && intf.metadata.alias !== intf.name) { %>
+                        (<%= intf.metadata.alias %>)
+                    <% } %>
+                    </li>
                 <% } %>
             </ul>
         </div>
