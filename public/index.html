@@ -8,32 +8,26 @@
         <script src='client.min.js'></script>
     </head>
     <body>
-        <div id='status' class='container'>
-        </div>
-        <div id='targets'>
-            <div class='container'>
-                <h1>Targets</h1>
-                <ul id='targetList'></ul>
-            </div>
-        </div>
-        <div id='interfaces'>
-            <div class='container'>
-                <h1 id='interfaceHeader'></h1>
-                <ul id='interfaceList'></ul>
-            </div>
-        </div>
-        <div id='graphs'>
-            <div class='container'>
-                <h2>Last Two Hours</h2>
-                <div class='graphContainer'>
-                    <div id='hourlyGraph' class='graph'></div>
-                </div>
-                <h2>Last 24 Hours</h2>
-                <div class='graphContainer'>
-                    <div id='dailyGraph' class='graph'</div>
+            <div id='targets'>
+                <div class='container'>
+                    <h1>Targets</h1>
+                    <div id='targetList'></div>
+                    <div style='clear: both'></div>
                 </div>
             </div>
-        </div>
+            <div id='graphs'>
+                <div class='container'>
+                    <h2>Last Two Hours</h2>
+                    <div class='graphContainer'>
+                        <div id='hourlyGraph' class='graph'></div>
+                    </div>
+                    <h2>Last 24 Hours</h2>
+                    <div class='graphContainer'>
+                        <div id='dailyGraph' class='graph'</div>
+                    </div>
+                </div>
+            </div>
+            <div id='status' class='container'></div>
     </body>
     <script type='x-tmpl' id='statusTemplate'>
         <div class='statusItem'>
@@ -41,10 +35,25 @@
             Next poll
             <% wait = Math.ceil((next - Date.now()) / 1000) %>
             <% if (wait > 0) { %>
-            in <span class='statusNext'><%= wait %></span> s.
-            <% } else { %>
-            <span class='statusNext'>currently</span>.
-            <% } %>
+                in <span class='statusNext'><%= wait %></span> s.
+                <% } else { %>
+                <span class='statusNext'>currently</span>.
+                <% } %>
+        </div>
+    </script>
+    <script type='x-tmpl' id='targetTemplate'>
+        <div class='target' id='target-<%= name %>'>
+            <a href='#<%= name %>'><%= name %></a>&ensp;
+        </div>
+    </script>
+    <script type='x-tmpl' id='interfaceListTemplate'>
+        <div class='interfaceList'>
+            <% var il = interfaces.length; %>
+            <ul>
+                <% for (var i = 0; i < il; i++) { %>
+                    <li id='interface-<%= interfaces[i].name %>'><a href='#<%= target.name %>/<%= interfaces[i].name %>'><%= interfaces[i].name %></a></li>
+                <% } %>
+            </ul>
         </div>
     </script>
 </html>

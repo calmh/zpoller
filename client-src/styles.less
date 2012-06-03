@@ -1,80 +1,95 @@
-.border-radius (@radius) {
-    border-radius: @radius;
-    -moz-border-radius: @radius;
-    -webkit-border-radius: @radius;
-}
-
-.box-shadow (@x: 0, @y: 0, @blur: 1px, @color: #000) {
-    box-shadow: @arguments;
-    -moz-box-shadow: @arguments;
-    -webkit-box-shadow: @arguments;
-}
-
-.linear-gradient (@c1, @c2) {
-    background-color: @c1;
-    background-image: -webkit-gradient(linear, 0 0, 0 100%, from(@c1), to(@c2));
-    background-image: -webkit-linear-gradient(@c1, @c2);
-    background-image: -moz-linear-gradient(top, @c1, @c2);
-    background-image: -ms-linear-gradient(@c1, @c2);
-    background-image: -o-linear-gradient(@c1, @c2);
-    background-image: linear-gradient(@c1, @c2);
-    background-repeat: no-repeat;
-}
+@background: #e8e8e8;
+@text: #222;
+@boxBg: #fff;
 
 body {
     font-family: Helvetica, Arial, sans-serif;
+    font-weight: 300;
+    background: @background;
+    color: @text;
+    margin: 0;
+    padding: 0;
+    margin-top: 40px;
 }
 a {
-    font-weight: bold;
     text-decoration: none;
-    color: #38a;
+    color: @text;
 }
 a:hover {
     text-decoration: underline;
 }
 .container {
-    padding: 10px;
-    margin: 5px;
+    padding: 20px;
+    background-color: @boxBg;
+}
 
-    border: 1px solid #888;
-    .border-radius(5px);
-    .linear-gradient(#eee, #ccc);
-    .box-shadow(0px, 0px, 4px, #ccc);
-}
 h1, h2 {
-    color: #333;
-    text-shadow: 1px 1px 1px #fff;
+    font-weight: 300;
+    margin: 0;
+    padding: 0;
+    margin-bottom: .5em;
+    color: lighten(@text, 25%);
 }
-#targets, #interfaces, #graphs {
-    height: 100%;
-    overflow: scroll;
-}
+
+// Graphs
+
 #targets {
-    width: 300px;
-    position: absolute;
-    left: 0px;
-    top: 0px;
+    margin: 20px;
+    float: left;
+    width: 620px;
 }
-#interfaces {
-    width: 300px;
-    position: absolute;
-    left: 300px;
-    top: 0px;
+div.target {
+    float: left;
 }
+div.selected, .selectedInterface {
+    font-weight: 400;
+}
+div.interfaceList {
+    clear: both;
+    padding: .2em;
+
+    ul {
+        list-style-type: square;
+    }
+}
+
 #graphs {
-    width: 690px;
-    position: absolute;
-    left: 600px;
-    top: 0px;
+    margin: 20px;
+    position: fixed;
+    top: 40px;
+    right: 0;
+    width: 700px;
 }
 .graphContainer {
     padding: 10px;
-    background-color: #fff;
     margin: 10px;
-    border: 1px solid #888;
-    .border-radius(3px);
+    background-color: #fff;
 }
 .graph {
     width: 600px;
     height: 200px;
 }
+
+// Status bar
+
+#status {
+    width: 100%;
+    height: 30px;
+    position: fixed;
+    left: 0;
+    top: 0;
+    background-color: #888;
+    color: #fff;
+    padding: 4px;
+}
+.statusItem {
+    font-size: 80%;
+    float: left;
+    margin: 0;
+    padding: 0;
+    margin-left: 20px;
+}
+.statusPoller, .statusCounter, .statusNext {
+    font-weight: 500;
+}
+

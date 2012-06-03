@@ -1,4 +1,4 @@
-var $tl, $il, $gr, statusTemplate;
+var $tl, statusTemplate, targetTemplate, interfaceListTemplate;
 
 var host = 'http://localhost:8080';
 
@@ -58,35 +58,21 @@ function showInterface(target, intf) {
     .done(drawInGraph('#hourlyGraph'));
     jQuery.ajax(host + '/data/' + tgt + '/' + int + '/86400')
     .done(drawInGraph('#dailyGraph'));
+    $('.selectedInterface').removeClass('selectedInterface');
+    $('#interface-' + intf.name).addClass('selectedInterface');
 };
 
+var expandedTarget;
 function showTarget(target) {
-    $il.empty();
-    jQuery.ajax(host + '/target/' + encodeURIComponent(target.name)).done(function (data) {
-        _.each(data.interfaces, function (intf) {
-            $('#interfaceHeader').html(target.name);
-            var $li = $('<li></li>');
-            var $a = $('<a>' + intf.name + '</a>');
-            $a.attr('href', '#' + target.name + '/' + intf.name);
-            $a.addClass('interfaceName');
-            $a.click(function () {
-                showInterface(target, intf);
-            });
-            $li.append($a);
-            $li.append('<br />');
-
-            _.each(_.keys(intf.metadata).sort(), function (k) {
-                var v = intf.metadata[k];
-                if (v && v !== intf.name) {
-                    if (_.isNumber(v)) {
-                        v = formatNumber(v);
-                    }
-                    $li.append('<span class="interfaceMeta">' + k + ': ' + v + '</span><br />');
-                }
-            });
-            $il.append($li);
+    if (expandedTarget != target.name) {
+        $('.selected').removeClass('selected');
+        $('.interfaceList').remove();
+        jQuery.ajax(host + '/target/' + encodeURIComponent(target.name)).done(function (data) {
+            var $elem = $(interfaceListTemplate({ target: target, interfaces: data.interfaces }));
+            $('#target-' + target.name).addClass('selected').after($elem);
         });
-    });
+        expandedTarget = target.name;
+    }
 }
 
 // Status updates
@@ -112,34 +98,33 @@ function displayStatus() {
     setTimeout(displayStatus, 1000);
 }
 
+function parseHash() {
+    var m = /^#([^/]+)\/?(.*)$/.exec(window.location.hash);
+    if (m) {
+        showTarget({name: m[1]});
+        if (m[2]) {
+            showInterface({name: m[1]}, {name: m[2]});
+        }
+    }
+}
+
 $(document).ready(function () {
     $tl = $('#targetList');
-    $il = $('#interfaceList');
-    $gr = $('#graphs');
     statusTemplate = _.template(document.getElementById('statusTemplate').innerHTML);
+    targetTemplate = _.template(document.getElementById('targetTemplate').innerHTML);
+    interfaceListTemplate = _.template(document.getElementById('interfaceListTemplate').innerHTML);
 
     jQuery.ajax(host + '/targets').done(function (data) {
         _.each(data, function (target) {
-            var $li = $('<li></li>').addClass('target');
-            var $a = $('<a>' + target.name + '</a>')
-            .attr('href', '#' + target.name)
-            .click(function () {
-                showTarget(target);
-            });
-            $li.append($a);
-            $li.append('<br />');
-            $li.append('<span class="targetMeta">ip: ' + target.ip + '</span><br />');
-            $tl.append($li);
+            var $elem = $(targetTemplate(target));
+            $tl.append($elem);
         });
+        parseHash();
     });
-
-    var m = /^#([^/]+)\/(.+)$/.exec(window.location.hash);
-    if (m) {
-        showTarget({name: m[1]});
-        showInterface({name: m[1]}, {name: m[2]});
-    }
 
     updateStatus();
     displayStatus();
+
+    $(window).bind('hashchange', parseHash);
 });
 
