@@ -97,6 +97,7 @@ function displayStatus() {
     if (latestStatusData) {
         $('#status').empty();
         _.each(latestStatusData, function (stat) {
+            stat.duration = ((stat.end - stat.start) / 1000).toFixed(1);
             var html = statusTemplate(stat);
             var elem = $(html);
             $('#status').append(elem);

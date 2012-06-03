@@ -31,7 +31,7 @@
     </body>
     <script type='x-tmpl' id='statusTemplate'>
         <div class='statusItem'>
-            Poller <span class='statusPoller'><%= poller %></span> fetched <span class='statusCounter'><%= ncounters %></span> counters.<br />
+            Poller <span class='statusPoller'><%= poller %></span> fetched <span class='statusCounter'><%= ncounters %></span> counters in <span class='statusDuration'><%= duration %></span> s.<br />
             Next poll
             <% wait = Math.ceil((next - Date.now()) / 1000) %>
             <% if (wait > 0) { %>
