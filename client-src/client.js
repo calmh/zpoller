@@ -49,7 +49,13 @@ function drawInGraph(id) {
     return draw;
 }
 
+function simplify(str) {
+    return str.replace(/[^a-zA-Z0-9-_]/g, '');
+}
+
 function showInterface(target, intf) {
+    intf.id = simplify(intf.name);
+
     var tgt = encodeURIComponent(target.name);
     var int = encodeURIComponent(intf.name);
     jQuery.ajax('/data/' + tgt + '/' + int + '/7200')
@@ -57,17 +63,21 @@ function showInterface(target, intf) {
     jQuery.ajax('/data/' + tgt + '/' + int + '/86400')
     .done(drawInGraph('#dailyGraph'));
     $('.selectedInterface').removeClass('selectedInterface');
-    $('#interface-' + intf.name).addClass('selectedInterface');
+    $('#interface-' + intf.id).addClass('selectedInterface');
 };
 
 var expandedTarget;
 function showTarget(target) {
     if (expandedTarget != target.name) {
+        target.id = simplify(target.name);
         $('.selected').removeClass('selected');
         $('.interfaceList').remove();
         jQuery.ajax('/target/' + encodeURIComponent(target.name)).done(function (data) {
+            for (var i = 0; i < data.interfaces.length; i++) {
+                data.interfaces[i].id = simplify(data.interfaces[i].name);
+            }
             var $elem = $(interfaceListTemplate({ target: target, interfaces: data.interfaces }));
-            $('#target-' + target.name).addClass('selected').after($elem);
+            $('#target-' + target.id).addClass('selected').after($elem);
         });
         expandedTarget = target.name;
     }
@@ -114,6 +124,7 @@ $(document).ready(function () {
 
     jQuery.ajax('/targets').done(function (data) {
         _.each(data, function (target) {
+            target.id = simplify(target.name);
             var $elem = $(targetTemplate(target));
             $tl.append($elem);
         });

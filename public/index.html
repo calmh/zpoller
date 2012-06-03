@@ -42,7 +42,7 @@
         </div>
     </script>
     <script type='x-tmpl' id='targetTemplate'>
-        <div class='target' id='target-<%= name %>'>
+        <div class='target' id='target-<%= id %>'>
             <a href='#<%= name %>'><%= name %></a>&ensp;
         </div>
     </script>
@@ -52,11 +52,13 @@
             <ul>
                 <% for (var i = 0; i < il; i++) { %>
                     <% intf = interfaces[i] %>
-                    <li id='interface-<%= intf.name %>'>
-                    <a href='#<%= target.name %>/<%= intf.name %>'><%= interfaces[i].name %></a>
-                    <% if (intf.metadata.alias && intf.metadata.alias !== intf.name) { %>
-                        (<%= intf.metadata.alias %>)
-                    <% } %>
+                    <li id='interface-<%= intf.id %>'>
+                        <a href='#<%= target.name %>/<%= intf.name %>'>
+                            <%= interfaces[i].name %>
+                            <% if (intf.metadata.alias && intf.metadata.alias !== intf.name) { %>
+                                (<%= intf.metadata.alias %>)
+                            <% } %>
+                        </a>
                     </li>
                 <% } %>
             </ul>
