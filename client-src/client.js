@@ -44,7 +44,11 @@ function drawInGraph(id) {
         var s2 = _.zip(ts, iou);
         var maxIn = formatNumber(_.max(iin));
         var maxOut = formatNumber(- _.min(iou));
-        jQuery.plot($(id), [ { label: 'In (max ' + maxIn + ')', data: s1 }, { label: 'Out (max ' + maxOut + ')', data: s2 } ], options);
+        var series = [
+            { label: 'In (max ' + maxIn + ')', data: s1, color: 'rgb(228, 26, 28)' },
+            { label: 'Out (max ' + maxOut + ')', data: s2, color: 'rgb(55, 126, 184)' }
+        ];
+        jQuery.plot($(id), series, options);
     };
     return draw;
 }
@@ -58,10 +62,8 @@ function showInterface(target, intf) {
 
     var tgt = encodeURIComponent(target.name);
     var int = encodeURIComponent(intf.name);
-    jQuery.ajax('/data/' + tgt + '/' + int + '/7200')
-    .done(drawInGraph('#hourlyGraph'));
-    jQuery.ajax('/data/' + tgt + '/' + int + '/86400')
-    .done(drawInGraph('#dailyGraph'));
+    jQuery.ajax('/data/' + tgt + '/' + int + '/7200').done(drawInGraph('#hourlyGraph'));
+    jQuery.ajax('/data/' + tgt + '/' + int + '/86400').done(drawInGraph('#dailyGraph'));
     $('.selectedInterface').removeClass('selectedInterface');
     $('#interface-' + intf.id).addClass('selectedInterface');
 };
