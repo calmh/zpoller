@@ -69,7 +69,7 @@ function showInterface(target, intf) {
 };
 
 var expandedTarget;
-function showTarget(target) {
+function showTarget(target, intf) {
     if (expandedTarget != target.name) {
         target.id = simplify(target.name);
         $('.selected').removeClass('selected');
@@ -80,8 +80,29 @@ function showTarget(target) {
             }
             var $elem = $(interfaceListTemplate({ target: target, interfaces: data.interfaces }));
             $('#target-' + target.id).addClass('selected').after($elem);
+
+            if (intf) {
+                showInterface(target, intf);
+            }
         });
         expandedTarget = target.name;
+    }
+}
+
+function parseHash() {
+    var m = /^#([^/]+)\/?(.*)$/.exec(window.location.hash);
+    if (m) {
+        var tgt = {name: m[1]};
+        var intf;
+        if (m[2]) {
+            intf = {name: m[2]};
+        }
+
+        if (expandedTarget !== tgt.name) {
+            showTarget(tgt, intf);
+        } else {
+            showInterface(tgt, intf);
+        }
     }
 }
 
@@ -121,16 +142,6 @@ function displayStatus() {
     }
 
     setTimeout(displayStatus, 1000);
-}
-
-function parseHash() {
-    var m = /^#([^/]+)\/?(.*)$/.exec(window.location.hash);
-    if (m) {
-        showTarget({name: m[1]});
-        if (m[2]) {
-            showInterface({name: m[1]}, {name: m[2]});
-        }
-    }
 }
 
 var graphsWidth;
