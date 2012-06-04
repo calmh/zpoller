@@ -5,40 +5,37 @@
         <script src='jquery-min.js'></script>
         <script src='underscore-min.js'></script>
         <script src='jquery.flot.js'></script>
+        <script src='jquery.flot.pie.js'></script>
         <script src='client.min.js'></script>
     </head>
     <body>
-            <div id='targets'>
-                <div class='container'>
-                    <h1>Targets</h1>
-                    <div id='targetList'></div>
-                    <div style='clear: both'></div>
+        <div id='status' class='container'></div>
+        <div id='targets'>
+            <div class='container'>
+                <h1>Targets</h1>
+                <div id='targetList'></div>
+                <div style='clear: both'></div>
+            </div>
+        </div>
+        <div id='graphs'>
+            <div class='container'>
+                <h2>Last Two Hours</h2>
+                <div class='graphContainer'>
+                    <div id='hourlyGraph' class='graph'></div>
+                </div>
+                <h2>Last 24 Hours</h2>
+                <div class='graphContainer'>
+                    <div id='dailyGraph' class='graph'</div>
                 </div>
             </div>
-            <div id='graphs'>
-                <div class='container'>
-                    <h2>Last Two Hours</h2>
-                    <div class='graphContainer'>
-                        <div id='hourlyGraph' class='graph'></div>
-                    </div>
-                    <h2>Last 24 Hours</h2>
-                    <div class='graphContainer'>
-                        <div id='dailyGraph' class='graph'</div>
-                    </div>
-                </div>
-            </div>
-            <div id='status' class='container'></div>
+        </div>
     </body>
     <script type='x-tmpl' id='statusTemplate'>
-        <div class='statusItem'>
-            Poller <span class='statusPoller'><%= poller %></span> fetched <span class='statusCounter'><%= ncounters %></span> counters in <span class='statusDuration'><%= duration %></span> s.<br />
-            Next poll
-            <% wait = Math.ceil((next - Date.now()) / 1000) %>
-            <% if (wait > 0) { %>
-                in <span class='statusNext'><%= wait %></span> s.
-                <% } else { %>
-                <span class='statusNext'>currently</span>.
-                <% } %>
+        <div id='status-<%= poller %>' class='statusItem'>
+            <div id='wait-<%= poller %>' class='donut float'></div>
+            <div class='float'>
+                Poller runs every <span class='statusPoller'><%= poller %></span>s on <span class='statusTargets' id='targets-<%= poller %>'><%= nhosts %></span> targets.<br/>
+                Last fetched <span class='statusCounter' id='ncounters-<%= poller %>'><%= ncounters %></span> counters in <span class='statusDuration' id='duration-<%= poller %>'><%= duration %></span> s.<br /></div>
         </div>
     </script>
     <script type='x-tmpl' id='targetTemplate'>
@@ -53,14 +50,14 @@
                 <% for (var i = 0; i < il; i++) { %>
                     <% intf = interfaces[i] %>
                     <li id='interface-<%= intf.id %>'>
-                        <a href='#<%= target.name %>/<%= intf.name %>'>
-                            <%= interfaces[i].name %>
-                            <% if (intf.metadata.alias && intf.metadata.alias !== intf.name) { %>
-                                (<%= intf.metadata.alias %>)
+                    <a href='#<%= target.name %>/<%= intf.name %>'>
+                        <%= interfaces[i].name %>
+                        <% if (intf.metadata.alias && intf.metadata.alias !== intf.name) { %>
+                            (<%= intf.metadata.alias %>)
                             <% } %>
-                        </a>
+                    </a>
                     </li>
-                <% } %>
+                    <% } %>
             </ul>
         </div>
     </script>

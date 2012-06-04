@@ -93,16 +93,30 @@ function updateStatus() {
         latestStatusData = data;
     });
 
-    setTimeout(updateStatus, 10000);
+    setTimeout(updateStatus, 5555);
 }
+var statusOptions = { series: { pie: { show: true, innerRadius: 0.6, label: { show: false }, stroke: { width: 0, color: '#888' } } }, legend: { show: false } }
 function displayStatus() {
     if (latestStatusData) {
-        $('#status').empty();
         _.each(latestStatusData, function (stat) {
             stat.duration = ((stat.end - stat.start) / 1000).toFixed(1);
-            var html = statusTemplate(stat);
-            var elem = $(html);
-            $('#status').append(elem);
+
+            var $elem = $('#wait-' + stat.poller);
+            if ($elem.length < 1) {
+                $('#status').append($(statusTemplate(stat)));
+                $elem = $('#wait-' + stat.poller);
+            }
+
+            var wait = Math.ceil((stat.next - Date.now()) / 1000);
+            var waitColor = '#999';
+            if (wait <= 0) {
+                wait = 0;
+                waitColor = '#ff9';
+            }
+            $.plot($elem, [ { color: '#fff', data: wait }, { color: waitColor, data: stat.poller-wait } ], statusOptions);
+            $('#targets-' + stat.poller).text(stat.nhosts);
+            $('#ncounters-' + stat.poller).text(stat.ncounters);
+            $('#duration-' + stat.poller).text(stat.duration);
         });
     }
 

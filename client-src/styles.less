@@ -1,6 +1,7 @@
 @background: #e8e8e8;
 @text: #222;
 @boxBg: #fff;
+@selected: rgb(228, 26, 28);
 
 body {
     font-family: Helvetica, Arial, sans-serif;
@@ -41,8 +42,9 @@ h1, h2 {
 div.target {
     float: left;
 }
-div.selected, .selectedInterface {
+div.selected, li.selectedInterface, div.selected a, li.selectedInterface a {
     font-weight: 400;
+    color: @selected;
 }
 div.interfaceList {
     clear: both;
@@ -88,8 +90,16 @@ div.interfaceList {
     margin: 0;
     padding: 0;
     margin-left: 20px;
+    vertical-align: middle;
 }
-.statusPoller, .statusCounter, .statusNext, .statusDuration {
+.statusPoller, .statusCounter, .statusNext, .statusDuration, .statusTargets {
     font-weight: 500;
 }
-
+.donut {
+    width: 28px;
+    height: 28px;
+    margin-right: 5px;
+}
+.float {
+    float: left;
+}
