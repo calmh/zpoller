@@ -62,8 +62,9 @@ function showInterface(target, intf) {
 
     var tgt = encodeURIComponent(target.name);
     var int = encodeURIComponent(intf.name);
-    jQuery.ajax('/data/' + tgt + '/' + int + '/7200').done(drawInGraph('#hourlyGraph'));
-    jQuery.ajax('/data/' + tgt + '/' + int + '/86400').done(drawInGraph('#dailyGraph'));
+    jQuery.ajax('/data/' + tgt + '/' + int + '/7200/300').done(drawInGraph('#hourlyGraph'));
+    jQuery.ajax('/data/' + tgt + '/' + int + '/86400/300').done(drawInGraph('#dailyGraph'));
+    jQuery.ajax('/data/' + tgt + '/' + int + '/604800/300').done(drawInGraph('#weeklyGraph'));
     $('.selectedInterface').removeClass('selectedInterface');
     $('#interface-' + intf.id).addClass('selectedInterface');
 };

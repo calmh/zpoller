@@ -42,7 +42,7 @@ function getTargetInterfaces(target, callback) {
     });
 }
 
-function getData(target, interface, seconds, callback) {
+function getData(target, interface, seconds, maxpoints, callback) {
     log.debug('getData(' + target + ', ' + interface + ')');
     db.pooledClient.collection('host.' + target, function (error, collection) {
         var sel = {};
@@ -53,7 +53,30 @@ function getData(target, interface, seconds, callback) {
                 callback(err);
             } else {
                 res = _.map(res, function (obj) { return { t: obj._id, v: obj.rate[interface] }; });
-                callback(null, res);
+                var avg = Math.ceil(res.length / maxpoints);
+                if (avg === 1) {
+                    callback(null, res);
+                } else {
+                    var newRes = [];
+                    var ts = 0, vs = {};
+                    for (var i = 0, l = res.length; i < l; i++) {
+                        ts += res[i].t;
+                        _.each(res[i].v, function (v, k) {
+                            vs[k] = (vs[k] || 0) + v;
+                        });
+
+                        if (i % avg === avg - 1) {
+                            _.each(vs, function (v, k) {
+                                vs[k] = Math.round(vs[k] / avg);
+                            });
+
+                            newRes.push({ t: Math.round(ts/avg), v: vs });
+                            ts = 0;
+                            vs = {};
+                        }
+                    }
+                    callback(null, newRes);
+                }
             }
         });
     });
@@ -101,7 +124,15 @@ function main() {
     app.get('/data/:target/:interface/:seconds', function (req, res) {
         res.contentType('json');
         res.header("Access-Control-Allow-Origin", "*");
-        getData(req.params.target, req.params.interface, parseInt(req.params.seconds, 10), function (err, result) {
+        getData(req.params.target, req.params.interface, parseInt(req.params.seconds, 10), 500, function (err, result) {
+            res.send(JSON.stringify(result));
+        });
+    });
+
+    app.get('/data/:target/:interface/:seconds/:maxpoints', function (req, res) {
+        res.contentType('json');
+        res.header("Access-Control-Allow-Origin", "*");
+        getData(req.params.target, req.params.interface, parseInt(req.params.seconds, 10), parseInt(req.params.maxpoints, 10), function (err, result) {
             res.send(JSON.stringify(result));
         });
     });
