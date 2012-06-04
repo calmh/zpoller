@@ -142,6 +142,18 @@ function adjustWidths() {
     $('#targets').css('width', width + 'px');
 }
 
+function filterTargets() {
+    var f = $(this).val();
+    $('.target').each(function (idx, elem) {
+        var $elem = $(elem);
+        if ($elem.attr('data-name').indexOf(f) >= 0) {
+            $elem.show();
+        } else {
+            $elem.hide();
+        }
+    });
+}
+
 $(document).ready(function () {
     $tl = $('#targetList');
     statusTemplate = _.template(document.getElementById('statusTemplate').innerHTML);
@@ -159,6 +171,7 @@ $(document).ready(function () {
 
     $(window).bind('hashchange', parseHash);
     $(window).resize(adjustWidths);
+    $('#targetFilter').keyup(filterTargets);
 
     _.defer(adjustWidths);
     _.defer(updateStatus);

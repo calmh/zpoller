@@ -13,6 +13,7 @@
         <div id='targets'>
             <div class='container'>
                 <h1>Targets</h1>
+                <input type='text' id='targetFilter' placeholder='Filter targets...'/>
                 <div id='targetList'></div>
                 <div style='clear: both'></div>
             </div>
@@ -39,7 +40,7 @@
         </div>
     </script>
     <script type='x-tmpl' id='targetTemplate'>
-        <div class='target' id='target-<%= id %>'>
+        <div class='target' id='target-<%= id %>' data-name='<%= name %>'>
             <a href='#<%= name %>'><%= name %></a>&ensp;
         </div>
     </script>
