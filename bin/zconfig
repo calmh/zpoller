@@ -14,6 +14,10 @@ config.ready(function () {
     db.ready(main);
 });
 
+function sanitize(str) {
+    return str.replace(/^\s+/, '').replace(/\s+$/, '').replace(/[$;`'"^]+/g, '_');
+}
+
 function updateConfig(callback) {
     log.debug('updateConfig()');
     db.collection('config', function (err, coll) {
@@ -65,7 +69,7 @@ function updateHosts(callback) {
             _.each(config.hosts, function (host) {
                 // When we update a host, we reset `indexed` to be sure it gets reindexed
                 // the next time around.
-                var obj = { name: host[0], ip: host[1], community: host[2], indexed: 0 };
+                var obj = { name: sanitize(host[0]), ip: host[1], community: host[2], indexed: 0 };
                 coll.update({ name: obj.name }, { $set: obj, $unset: { remove: 1 } }, { safe: true, upsert: true }, function () {
                     if (++cnt === len) {
                         log.debug('updateHosts/upsertHosts() - updated ' + len + ' hosts');
