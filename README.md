@@ -58,3 +58,8 @@ Once the configuration has been imported, it will be picked up by the poller at
 the next polling run. If you have added new hosts or polling packages, target
 making will happen as needed.
 
+License
+-------
+
+2-Clause BSD
+
